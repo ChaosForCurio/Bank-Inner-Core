@@ -1,16 +1,16 @@
 require("dotenv").config()
 
-const connectDB = require("./config/db")
+const { verifyConnection } = require("./src/db")
 const app = require("./src/app")
 
 async function start() {
     try {
-        await connectDB()
+        await verifyConnection()
         app.listen(3000, () => {
-            console.log("Server is running on port 3000")
+            console.log("Server is running on http://localhost:3000")
         })
-    } catch (err) {
-        console.error("Failed to start server:", err)
+    } catch (error) {
+        console.error("Failed to start server:", error.message)
         process.exit(1)
     }
 }
