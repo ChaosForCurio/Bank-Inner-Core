@@ -16,6 +16,19 @@ const UserModel = {
     },
 
     /**
+     * findById - Find a user by ID
+     */
+    async findById(id) {
+        try {
+            const users = await sql`SELECT * FROM users WHERE id = ${id} LIMIT 1`;
+            return users.length > 0 ? users[0] : null;
+        } catch (error) {
+            console.error("Error in UserModel.findById:", error);
+            throw error;
+        }
+    },
+
+    /**
      * create - Create a new user
      */
     async create({ email, password, name }) {
@@ -24,9 +37,9 @@ const UserModel = {
             const hashedPassword = await bcrypt.hash(password, 10);
 
             const users = await sql`
-        INSERT INTO users (email, password, name)
-        VALUES (${email}, ${hashedPassword}, ${name})
-        RETURNING id, email, name, created_at
+        INSERT INTO users (email, password, name, status)
+        VALUES (${email}, ${hashedPassword}, ${name}, 'active')
+        RETURNING id, email, name, status, created_at
       `;
 
             // Map 'id' to '_id' to match expected controller behavior
