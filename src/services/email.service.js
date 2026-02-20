@@ -29,6 +29,45 @@ async function sendWelcomeEmail(email, name, subject = "Welcome to Bank Inner Co
     }
 }
 
+async function sendTransactionEmail(userEmail, username, transactionId, amount, type) {
+    try {
+        const { data, error } = await resend.emails.send({
+            from: 'Sukuna <FromHeavenToHorizon@gmail.com>',
+            to: userEmail,
+            subject: 'Transaction Notification',
+            html: `<p>Hello ${username},</p><p>Transaction ID: ${transactionId}</p><p>Transaction Amount: ${amount}</p><p>Transaction Type: ${type}</p><p>Transaction Status: ${transaction.status}</p>`,
+        });
+
+        if (error) {
+            console.error('Error sending transaction email:', error);
+        } else {
+            console.log('Transaction email sent successfully:', data);
+        }
+    } catch (err) {
+        console.error('Unexpected error sending transaction email:', err);
+    }
+}
+
+
+async function sendTransactionFailEmail(userEmail, username, transactionId, amount, type) {
+    try {
+        const { data, error } = await resend.emails.send({
+            from: 'Sukuna <FromHeavenToHorizon@gmail.com>',
+            to: userEmail,
+            subject: 'Transaction Notification',
+            html: `<p>Hello ${username},</p><p>Transaction ID: ${transactionId}</p><p>Transaction Amount: ${amount}</p><p>Transaction Type: ${type}</p><p>Transaction Status: ${transaction.status}</p>`,
+        });
+
+        if (error) {
+            console.error('Error sending transaction email:', error);
+        } else {
+            console.log('Transaction email sent successfully:', data);
+        }
+    } catch (err) {
+        console.error('Unexpected error sending transaction email:', err);
+    }
+}
+
 async function sendLoginEmail(email, name) {
     try {
         const { data, error } = await resend.emails.send({
@@ -48,4 +87,9 @@ async function sendLoginEmail(email, name) {
     }
 }
 
-module.exports = { sendWelcomeEmail, sendLoginEmail };
+module.exports = {
+    sendWelcomeEmail,
+    sendLoginEmail,
+    sendTransactionEmail,
+    sendTransactionFailEmail
+};

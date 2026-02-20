@@ -15,11 +15,15 @@ app.use(express.json())
 
 //** Routes Required*/
 
+const authRouter = require("./routes/auth.route")
+const accountRouter = require("./routes/account.routes")
+const flowRouter = require("./routes/flow.routes")
 
 
 //** Use Routes */
 
 app.use("/api/auth", authRouter)
 app.use("/api/account", accountRouter)
+app.use("api/flow", flowRouter)
 
 module.exports = app

@@ -98,8 +98,11 @@ async function createTransaction(req, res) {
         toAccount,
         amount,
         type,
-        idempotencyKey
-    })
+        idempotencyKey,
+        status: "pending"
+    },
+        { session }
+    )
 
     /**
      * - Update balances
@@ -131,7 +134,8 @@ async function createTransaction(req, res) {
         amount,
         type: "debit",
         balance: fromUserAccount.balance - amount
-    })
+    }, { session }
+    )
 
     await ledgerModel.create({
         accountId: toAccount,
@@ -139,16 +143,19 @@ async function createTransaction(req, res) {
         amount,
         type: "credit",
         balance: toUserAccount.balance + amount
-    })
+    },
+        { session }
+    )
 
     /**
      * - Send notifications
      */
 
-    await emailService.sendTransactionNotification({
-        to: fromUserAccount.email,
+    await emailService.sendTransactionEmail(req.user.email, req.user.name, req.user.id, {
         amount,
-        type: "debit"
+        type: "debit",
+        toAccount,
+        transactionId: transaction._id
     })
 
     await emailService.sendTransactionNotification({
@@ -165,24 +172,15 @@ async function createTransaction(req, res) {
      * - Return response
      */
 
-    return res.status(201).json({
-        message: "Transaction created successfully",
-        transaction
-    })
+    transaction.status = "Completed"
+    await transaction.save({ session })
 
-    /**
-     * Derive sender balance
-     */
 
-    const balance = await fromUserAccount.getBalance()
-    if (balance < amount) {
-        return res.status(400).json({ message: `Insufficient balance. Please check your ${balance}. Requested amount is ${amount}` })
-    }
+    await session.commitTransaction()
+    session.endSession()
 
-    /**
-     * Create Transaction (Pending)
-     */
+}
 
-    const session = await neon.startSession()
-    session.startTransaction()
+module.exports = {
+    createTransaction
 }
