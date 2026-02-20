@@ -25,3 +25,14 @@ coverage
 #yarn
 .yarn
 
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+
+# local env copies
+*.local
+
