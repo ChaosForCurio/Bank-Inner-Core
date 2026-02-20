@@ -1,54 +1,55 @@
-const neon = require("neon");
+const { sql } = require("../db");
 
-const transactionSchema = new neon.Schema({
-    fromAccount: {
-        type: neon.Schema.Types.ObjectId,
-        ref: "account",
-        required: [true, "Transaction must be associated with a from account"],
-        index: true
+const TransactionModel = {
+    /**
+     * create - Create a new transaction
+     */
+    async create({ fromAccount, toAccount, amount, type, idempotencyKey, status = 'pending' }) {
+        try {
+            const transactions = await sql`
+                INSERT INTO transactions (from_account, to_account, amount, type, idempotency_key, status)
+                VALUES (${fromAccount}, ${toAccount}, ${amount}, ${type}, ${idempotencyKey}, ${status})
+                RETURNING *
+            `;
+            return transactions[0];
+        } catch (error) {
+            console.error("Error in TransactionModel.create:", error);
+            throw error;
+        }
     },
 
-    toAccount: {
-        type: neon.Schema.Types.ObjectId,
-        ref: "account",
-        required: [true, "Transaction must be associated with a to account"],
-        index: true
+    /**
+     * findById - Find transaction by ID
+     */
+    async findById(id) {
+        try {
+            const transactions = await sql`
+                SELECT * FROM transactions WHERE id = ${id} LIMIT 1
+            `;
+            return transactions.length > 0 ? transactions[0] : null;
+        } catch (error) {
+            console.error("Error in TransactionModel.findById:", error);
+            throw error;
+        }
     },
 
-    amount: {
-        type: Number,
-        required: [true, "Transaction amount is required"],
-        index: true
-    },
-
-    type: {
-        type: String,
-        enum: ["deposit", "withdrawal", "transfer"],
-        required: [true, "Transaction type is required"],
-        index: true
-    },
-
-    status: {
-        type: String,
-        enum: ["pending", "completed", "failed"],
-        default: "pending",
-        required: [true, "Transaction status is required"],
-        index: true
-    },
-
-    idempotencyKey: {
-        type: String,
-        required: [true, "Idempotency key is required"],
-        index: true,
-        unique: true
-    },
-
-    createdAt: {
-        type: Date,
-        default: Date.now
+    /**
+     * updateStatus - Update transaction status
+     */
+    async updateStatus(id, status) {
+        try {
+            const transactions = await sql`
+                UPDATE transactions 
+                SET status = ${status}, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ${id}
+                RETURNING *
+            `;
+            return transactions[0];
+        } catch (error) {
+            console.error("Error in TransactionModel.updateStatus:", error);
+            throw error;
+        }
     }
-});
+};
 
-const transactionModel = neon.model("transaction", transactionSchema);
-
-module.exports = transactionModel;
+module.exports = TransactionModel;
