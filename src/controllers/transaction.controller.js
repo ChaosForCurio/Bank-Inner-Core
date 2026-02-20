@@ -179,8 +179,84 @@ async function createTransaction(req, res) {
     await session.commitTransaction()
     session.endSession()
 
+    async function createInitialFundsTransaction(req, res) {
+        if (!toAccount || !account || !idempotencyKey) {
+            return res.status(400).json({
+                message: "toAccount, aomount and idempotency key is required"
+            })
+
+            const toUserAccount = await accountModel.findOne({
+                _id: toAccount,
+                userId: req.user.id
+            })
+
+            if (!toUserAccount) {
+                return res.status(404).json({
+                    message: "Account not found"
+                })
+            }
+
+            if (toUserAccount.status !== "active") {
+                return res.status(400).json({
+                    message: "Account is not active"
+                })
+            }
+        }
+
+        const fromUserAccount = await accountModel.findOne({
+            systemUser: true,
+            user: req.user._id,
+            currency: toUserAccount.currency
+        })
+
+        if (!fromUserAccount) {
+            return res.status(404).json({
+                message: "System user account not found"
+            })
+        }
+        const session = await neon.startSession()
+        session.startTransaction()
+
+        const transaction = await transactionModel.create({
+            fromAccount: fromUserAccount._id,
+            toAccount: toUserAccount._id,
+            amount,
+            type: "credit",
+            idempotencyKey,
+            status: "pending"
+        }, { session })
+
+        const debitLedgerEntry = await ledgerModel.create({
+            accountId: fromUserAccount._id,
+            transactionId: transaction._id,
+            amount,
+            type: "debit",
+            balance: fromUserAccount.balance - amount
+        }, { session })
+
+        const creditLedgerEntry = await ledgerModel.create({
+            accountId: toUserAccount._id,
+            transactionId: transaction._id,
+            amount,
+            type: "credit",
+            balance: toUserAccount.balance + amount
+        }, { session })
+    }
+    transaction.status = "completed"
+    await transaction.save({ session })
+
+    await session.commitTransaction()
+    session.endSession()
+
+    return res.status(201).json({
+        message: "Transaction successfully",
+        status: "success",
+        data: transaction
+    })
+
 }
 
 module.exports = {
-    createTransaction
+    createTransaction,
+    createInitialFundsTransaction
 }

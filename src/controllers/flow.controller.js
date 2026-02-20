@@ -17,3 +17,11 @@ const emailService = require("../services/email.service")
  * 9. Create credit ledger entry
  * 10. Update transaction (completed)
  */
+
+async function createTransaction(req, res) {
+    const { fromAccount, ToAccount, amount, idempotencyKey } = req.body
+
+    if (!fromAccount || !ToAccount || !amount || !idempotencyKey) {
+        return res.status(400).json({ message: "All fields are required" })
+    }
+}

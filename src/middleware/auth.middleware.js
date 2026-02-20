@@ -4,6 +4,7 @@ const jwt = require("jsonwebtoken")
 
 async function authMiddleware(req, res, next) {
 
+
     const token = req.cookies.token || req.headers.authorization?.split(" ")[1]
     if (!token) {
         return res.status(401).json({
@@ -15,7 +16,7 @@ async function authMiddleware(req, res, next) {
     try {
         const jwtSecret = process.env.JWT_SECRET || "development_secret_only"
         const decoded = jwt.verify(token, jwtSecret)
-        const user = await UserModel.findById(decoded.id)
+        const user = await UserModel.findById(decoded.userId)
         req.user = user
         return next()
     } catch (error) {
@@ -24,7 +25,36 @@ async function authMiddleware(req, res, next) {
             status: "failed",
         })
     }
+
+    async function systemUserMiddleware(req, res, next) {
+        const token = req.cookies.systemToken || req.headers.authorization?.split(" ")[1]
+        if (!token) {
+            return res.status(401).json({
+                message: "Unauthorized",
+                status: "failed",
+            })
+        }
+
+        try {
+            const jwtSecret = process.env.JWT_SECRET || "development_secret_only"
+            const decoded = jwt.verify(token, jwtSecret)
+            const user = await UserModel.findById(decoded.userId).select("+systemUser")
+            if (!user.isSystemUser) {
+                return res.status(403).json({
+                    message: "Forbidden",
+                    status: "failed",
+                })
+            }
+            req.user = user
+            return next()
+        } catch (error) {
+            return res.status(401).json({
+                message: "Unauthorized Access Token is Invalid",
+                status: "failed",
+            })
+        }
+    }
 }
 
 
-module.exports = { authMiddleware }
+module.exports = { authMiddleware, authSystemUserMiddleware }
