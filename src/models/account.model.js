@@ -1,4 +1,5 @@
 const { sql } = require("../db");
+const ledgerModel = require("./ledger.model");
 
 const AccountModel = {
     /**
@@ -39,7 +40,88 @@ const AccountModel = {
 
 
         }
+    },
+
+    /**
+     * findById - Find account by ID
+     * @param {string} id 
+     */
+    async findById(id) {
+        try {
+            const accounts = await sql`
+                SELECT * FROM accounts 
+                WHERE id = ${id}
+            `;
+            return accounts[0];
+        } catch (error) {
+            console.error("Error in AccountModel.findById:", error);
+            throw error;
+        }
+    },
+
+    /**
+     * updateBalance - Update account balance
+     * @param {string} id 
+     * @param {number} amount 
+     */
+    async updateBalance(id, amount) {
+        try {
+            const accounts = await sql`
+                UPDATE accounts 
+                SET balance = balance + ${amount}
+                WHERE id = ${id}
+                RETURNING *
+            `;
+            return accounts[0];
+        } catch (error) {
+            console.error("Error in AccountModel.updateBalance:", error);
+            throw error;
+        }
     }
 };
+
+accountSchema.methods.getBalance = async function () {
+    const balanceData = await ledgerModel.aggregate([
+        {
+            $match: {
+                accountId: this._id
+            }
+        },
+        {
+            $group: {
+                _id: "null",
+                totalDebit: {
+                    $sum: {
+                        $cond: {
+                            if: { $eq: ["$type", "debit"] },
+                            then: "$amount",
+                            else: 0
+                        }
+                    }
+                },
+                totalCredit: {
+                    $sum: {
+                        $cond: {
+                            if: { $eq: ["$type", "credit"] },
+                            then: "$amount",
+                            else: 0
+                        }
+                    }
+                },
+
+                $project: {
+                    balance: { $subtract: ["$totalCredit", "$totalDebit"] }
+                }
+
+            }
+        }
+    ])
+
+    if (balanceData.length === 0) {
+        return 0;
+    }
+
+    return balanceData[0].balance;
+}
 
 module.exports = AccountModel;
