@@ -175,7 +175,49 @@ async function createInitialFundsTransaction(req, res) {
     }
 }
 
+/**
+ * getTransactionHistory - Fetch all ledger entries for user's accounts
+ */
+async function getTransactionHistory(req, res) {
+    try {
+        const userId = req.user.id;
+
+        // 1. Get all accounts for this user
+        const accounts = await AccountModel.findByUserId(userId);
+        const accountIds = accounts.map(acc => acc.id);
+
+        if (accountIds.length === 0) {
+            return res.status(200).json({ status: "success", transactions: [] });
+        }
+
+        // 2. Fetch history from Ledgers (since it handles credits/debits per account)
+        // We'll join with transactions to get more details if needed, 
+        // but for now, the ledger entries have the main info.
+        const history = await sql`
+            SELECT 
+                l.*, 
+                t.type as transaction_type,
+                t.from_account,
+                t.to_account,
+                t.status as transaction_status
+            FROM ledgers l
+            JOIN transactions t ON l.transaction_id = t.id
+            WHERE l.account_id = ANY(${accountIds})
+            ORDER BY l.created_at DESC
+        `;
+
+        return res.status(200).json({
+            status: "success",
+            transactions: history
+        });
+    } catch (error) {
+        console.error("Get history error:", error);
+        return res.status(500).json({ message: "Failed to retrieve transaction history" });
+    }
+}
+
 module.exports = {
     createTransaction,
-    createInitialFundsTransaction
+    createInitialFundsTransaction,
+    getTransactionHistory
 };

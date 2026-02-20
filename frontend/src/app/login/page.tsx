@@ -49,7 +49,7 @@ export default function LoginPage() {
                         <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mb-6 shadow-xl shadow-primary/20">
                             <Shield className="text-primary-foreground" size={32} />
                         </div>
-                        <h1 className="text-3xl font-black font-outfit text-white">Nova Bank</h1>
+                        <h1 className="text-3xl font-black font-outfit text-white">Xieriee bank</h1>
                         <p className="text-muted-foreground mt-2">Sign in to manage your digital assets</p>
                     </div>
 

@@ -15,7 +15,7 @@ export default function LandingPage() {
           <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center">
             <Shield className="text-primary-foreground" size={24} />
           </div>
-          <span className="font-outfit text-white">Nova Bank</span>
+          <span className="font-outfit text-white">Xieriee bank</span>
         </div>
         <div className="flex items-center gap-8">
           <div className="hidden md:flex items-center gap-8 text-sm font-medium text-muted-foreground">
@@ -104,7 +104,7 @@ export default function LandingPage() {
         </section>
 
         <footer className="mt-40 pt-10 border-t border-white/5 flex flex-col md:flex-row items-center justify-between gap-6 text-muted-foreground text-sm">
-          <p>© 2026 Nova Bank Ltd. Powered by Antigravity.</p>
+          <p>© 2026 Xieriee bank Ltd. Powered by Antigravity.</p>
           <div className="flex gap-8">
             <a href="https://github.com/ChaosForCurio" target="_blank" className="hover:text-white transition-colors flex items-center gap-2">
               <Github size={16} /> GitHub

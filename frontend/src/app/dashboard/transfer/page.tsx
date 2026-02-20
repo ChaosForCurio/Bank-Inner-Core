@@ -1,28 +1,53 @@
 "use client"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
-import { Send, Search, ArrowRight, Wallet, CheckCircle2, Loader2 } from "lucide-react"
+import { Send, Search, ArrowRight, Wallet, CheckCircle2, Loader2, ChevronDown } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 import { api, endpoints } from "@/lib/api"
 import toast from "react-hot-toast"
+import { cn } from "@/lib/utils"
 
 export default function TransferPage() {
     const [step, setStep] = useState(1)
     const [loading, setLoading] = useState(false)
+    const [accounts, setAccounts] = useState<any[]>([])
+    const [selectedAccount, setSelectedAccount] = useState<any>(null)
+    const [accountsLoading, setAccountsLoading] = useState(true)
     const [formData, setFormData] = useState({
         toAccount: "",
         amount: "",
         idempotencyKey: `tx_${Date.now()}`
     })
+    const [recentResult, setRecentResult] = useState<any>(null)
 
-    const currentBalance = 3000.45 // Should be fetched from API
+    useEffect(() => {
+        const fetchAccounts = async () => {
+            try {
+                const response = await api.get(endpoints.accounts.list)
+                setAccounts(response.data)
+                if (response.data.length > 0) {
+                    setSelectedAccount(response.data[0])
+                }
+            } catch (error) {
+                console.error("Failed to fetch accounts:", error)
+                toast.error("Could not load accounts")
+            } finally {
+                setAccountsLoading(false)
+            }
+        }
+        fetchAccounts()
+    }, [])
 
     const handleNext = () => {
+        if (!selectedAccount) {
+            toast.error("Please select a source account")
+            return
+        }
         if (!formData.toAccount || !formData.amount) {
             toast.error("Please fill in all fields")
             return
         }
-        if (parseFloat(formData.amount) > currentBalance) {
+        if (parseFloat(formData.amount) > selectedAccount.balance) {
             toast.error("Insufficient balance")
             return
         }
@@ -32,13 +57,14 @@ export default function TransferPage() {
     const handleTransfer = async () => {
         setLoading(true)
         try {
-            await api.post(endpoints.transactions.create, {
-                fromAccount: "3", // Hardcoded User 2 account ID for demo
+            const response = await api.post(endpoints.transactions.create, {
+                fromAccount: selectedAccount.id,
                 toAccount: formData.toAccount,
                 amount: parseFloat(formData.amount),
                 type: "transfer",
                 idempotencyKey: formData.idempotencyKey
             })
+            setRecentResult(response.data.data)
             toast.success("Transaction Complete")
             setStep(3)
         } catch (error: any) {
@@ -48,11 +74,19 @@ export default function TransferPage() {
         }
     }
 
+    if (accountsLoading) {
+        return (
+            <div className="h-[60vh] w-full flex items-center justify-center">
+                <Loader2 className="animate-spin text-primary" size={40} />
+            </div>
+        )
+    }
+
     return (
         <div className="max-w-xl mx-auto space-y-8">
             <div className="text-center space-y-2">
                 <h1 className="text-4xl font-black font-outfit">Send Money</h1>
-                <p className="text-muted-foreground">Transfer funds instantly to any Nova Bank account.</p>
+                <p className="text-muted-foreground">Transfer funds instantly to any Xieriee bank account.</p>
             </div>
 
             <div className="flex items-center justify-center gap-4 mb-4">
@@ -74,10 +108,32 @@ export default function TransferPage() {
                         animate={{ opacity: 1, x: 0 }}
                         className="space-y-8"
                     >
+                        {/* Account Selection */}
+                        <div className="space-y-4">
+                            <span className="text-sm font-bold text-muted-foreground uppercase tracking-wider px-2">From Account</span>
+                            <div className="relative group">
+                                <select
+                                    className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-lg font-bold outline-none focus:border-primary transition-all appearance-none cursor-pointer"
+                                    value={selectedAccount?.id}
+                                    onChange={(e) => {
+                                        const acc = accounts.find(a => a.id === e.target.value)
+                                        setSelectedAccount(acc)
+                                    }}
+                                >
+                                    {accounts.map(acc => (
+                                        <option key={acc.id} value={acc.id} className="bg-[#0a0f18] text-white">
+                                            {acc.account_type} (Balance: {formatCurrency(acc.balance)})
+                                        </option>
+                                    ))}
+                                </select>
+                                <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors pointer-events-none" size={20} />
+                            </div>
+                        </div>
+
                         <div className="space-y-4">
                             <div className="flex items-center justify-between px-2">
                                 <span className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Receiver Account ID</span>
-                                <span className="text-xs text-primary flex items-center gap-1"><Search size={12} /> Find Contact</span>
+                                <span className="text-xs text-primary flex items-center gap-1 cursor-pointer hover:underline"><Search size={12} /> Find Contact</span>
                             </div>
                             <input
                                 type="text"
@@ -91,7 +147,7 @@ export default function TransferPage() {
                         <div className="space-y-4">
                             <div className="flex items-center justify-between px-2">
                                 <span className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Amount to Send</span>
-                                <span className="text-xs text-muted-foreground">Balance: {formatCurrency(currentBalance)}</span>
+                                <span className="text-xs text-muted-foreground">Available: {formatCurrency(selectedAccount?.balance || 0)}</span>
                             </div>
                             <div className="relative">
                                 <span className="absolute left-6 top-1/2 -translate-y-1/2 text-2xl font-black text-primary">₹</span>
@@ -131,7 +187,7 @@ export default function TransferPage() {
                                     <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center"><Wallet size={20} /></div>
                                     <div className="text-left">
                                         <p className="text-[10px] text-muted-foreground uppercase font-black">From</p>
-                                        <p className="font-bold">Main Account (3)</p>
+                                        <p className="font-bold">{selectedAccount?.account_type} ({selectedAccount?.id})</p>
                                     </div>
                                 </div>
                                 <ArrowRight size={20} className="text-muted-foreground" />
@@ -179,11 +235,11 @@ export default function TransferPage() {
                         <div className="bg-white/5 rounded-3xl p-6 text-sm">
                             <div className="flex justify-between mb-2">
                                 <span className="text-muted-foreground">Reference ID</span>
-                                <span className="font-mono text-white tracking-wider">#4029-8812-901</span>
+                                <span className="font-mono text-white tracking-wider">#{recentResult?.id || "N/A"}</span>
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-muted-foreground">Status</span>
-                                <span className="text-primary font-bold">COMPLETED</span>
+                                <span className="text-primary font-bold uppercase">{recentResult?.status || "COMPLETED"}</span>
                             </div>
                         </div>
                         <button
@@ -201,8 +257,4 @@ export default function TransferPage() {
             </div>
         </div>
     )
-}
-
-function cn(...classes: any[]) {
-    return classes.filter(Boolean).join(" ");
 }

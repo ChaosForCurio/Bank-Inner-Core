@@ -7,8 +7,11 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit" });
 
 export const metadata: Metadata = {
-  title: "Nova Bank | The Future of Banking",
+  title: "Xieriee bank | The Future of Banking",
   description: "Secure, fast, and elegant banking for the modern age.",
+  icons: {
+    icon: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({

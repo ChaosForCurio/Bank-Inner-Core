@@ -11,6 +11,12 @@ const transactionRoutes = Router()
 transactionRoutes.post("/", authMiddleware.authMiddleware, transactionController.createTransaction)
 
 /**
+ * Get /api/transaction/history
+ * - Get transaction history for user's accounts
+ */
+transactionRoutes.get("/history", authMiddleware.authMiddleware, transactionController.getTransactionHistory)
+
+/**
  * post /api/transaction/system/intial-funds
  * - Create initial funds transaction from system user
  */
