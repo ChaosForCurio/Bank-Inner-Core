@@ -11,6 +11,7 @@ router.post("/logout", authController.userLogoutController)
 router.get("/me", authMiddleware.authMiddleware, (req, res) => {
     res.json({
         id: req.user.id,
+        uuid: req.user.uuid,
         email: req.user.email,
         name: req.user.name,
         is_system: req.user.is_system

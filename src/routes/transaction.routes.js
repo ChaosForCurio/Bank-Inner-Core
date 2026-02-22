@@ -22,4 +22,10 @@ transactionRoutes.get("/history", authMiddleware.authMiddleware, transactionCont
  */
 transactionRoutes.post("/system/intial-funds", authMiddleware.authSystemUserMiddleware, transactionController.createInitialFundsTransaction)
 
+/**
+ * Get /api/transaction/:id
+ * - Get single transaction details
+ */
+transactionRoutes.get("/:id", authMiddleware.authMiddleware, transactionController.getTransactionById)
+
 module.exports = transactionRoutes

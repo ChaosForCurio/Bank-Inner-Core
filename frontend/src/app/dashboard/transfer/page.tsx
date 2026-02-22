@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Send, Search, ArrowRight, Wallet, CheckCircle2, Loader2, ChevronDown } from "lucide-react"
-import { formatCurrency } from "@/lib/utils"
+import { formatCurrency, formatDate } from "@/lib/utils"
 import { api, endpoints } from "@/lib/api"
 import toast from "react-hot-toast"
 import { cn } from "@/lib/utils"
@@ -116,6 +116,53 @@ export default function TransferPage({ user }: { user?: any }) {
         }
     }
 
+    const handleDownloadReceipt = async () => {
+        if (!recentResult?.id) {
+            toast.error("No transaction found to download")
+            return
+        }
+
+        try {
+            const response = await api.get(endpoints.transactions.details(recentResult.id))
+            const { transaction, ledgers } = response.data
+
+            const receiptContent = `
+=========================================
+          XIERIEE BANK RECEIPT
+=========================================
+Transaction ID: ${transaction.id}
+Date: ${formatDate(transaction.created_at)}
+Status: ${transaction.status.toUpperCase()}
+Type: ${transaction.type.toUpperCase()}
+-----------------------------------------
+FROM ACCOUNT: ${transaction.from_account}
+TO ACCOUNT:   ${transaction.to_account}
+-----------------------------------------
+AMOUNT:       ${formatCurrency(transaction.amount)}
+-----------------------------------------
+Reference Key: ${transaction.idempotency_key}
+
+Thank you for banking with Xieriee!
+=========================================
+`.trim()
+
+            const blob = new Blob([receiptContent], { type: "text/plain" })
+            const url = window.URL.createObjectURL(blob)
+            const link = document.createElement("a")
+            link.href = url
+            link.download = `receipt_${transaction.id}.txt`
+            document.body.appendChild(link)
+            link.click()
+            document.body.removeChild(link)
+            window.URL.revokeObjectURL(url)
+
+            toast.success("Receipt downloaded")
+        } catch (error) {
+            console.error("Failed to download receipt:", error)
+            toast.error("Could not generate receipt")
+        }
+    }
+
     if (accountsLoading) {
         return (
             <div className="h-[60vh] w-full flex items-center justify-center">
@@ -127,8 +174,8 @@ export default function TransferPage({ user }: { user?: any }) {
     return (
         <div className="max-w-xl mx-auto space-y-8">
             <div className="text-center space-y-2">
-                <h1 className="text-4xl font-black font-outfit">Send Money</h1>
-                <p className="text-muted-foreground">Transfer funds instantly to any Xieriee bank account.</p>
+                <h1 className="text-3xl md:text-4xl font-black font-outfit">Send Money</h1>
+                <p className="text-sm md:text-base text-muted-foreground">Transfer funds instantly to any Xieriee bank account.</p>
             </div>
 
             <div className="flex items-center justify-center gap-4 mb-4">
@@ -143,7 +190,7 @@ export default function TransferPage({ user }: { user?: any }) {
                 ))}
             </div>
 
-            <div className="glass-card rounded-[40px] p-10 border border-white/10 relative overflow-hidden">
+            <div className="glass-card rounded-[32px] md:rounded-[40px] p-6 lg:p-10 border border-white/10 relative overflow-hidden">
                 {step === 1 && (
                     <motion.div
                         initial={{ opacity: 0, x: 20 }}
@@ -241,7 +288,7 @@ export default function TransferPage({ user }: { user?: any }) {
                                 <input
                                     type="number"
                                     placeholder="0.00"
-                                    className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 pl-12 text-3xl font-black outline-none focus:border-primary transition-all"
+                                    className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 pl-12 text-3xl md:text-5xl font-black outline-none focus:border-primary transition-all pr-4"
                                     value={formData.amount}
                                     onChange={e => setFormData({ ...formData, amount: e.target.value })}
                                 />
@@ -264,10 +311,10 @@ export default function TransferPage({ user }: { user?: any }) {
                         animate={{ opacity: 1, x: 0 }}
                         className="space-y-10"
                     >
-                        <div className="bg-primary/5 rounded-[32px] p-8 border border-primary/10 space-y-6">
+                        <div className="bg-primary/5 rounded-[24px] md:rounded-[32px] p-6 md:p-8 border border-primary/10 space-y-6">
                             <div className="text-center">
-                                <p className="text-muted-foreground text-sm font-bold uppercase tracking-widest mb-2">You are sending</p>
-                                <h2 className="text-5xl font-black font-outfit text-primary">{formatCurrency(formData.amount)}</h2>
+                                <p className="text-muted-foreground text-xs md:text-sm font-bold uppercase tracking-widest mb-2">You are sending</p>
+                                <h2 className="text-4xl md:text-5xl font-black font-outfit text-primary break-all">{formatCurrency(formData.amount)}</h2>
                             </div>
                             <div className="flex items-center justify-between pt-6 border-t border-white/5">
                                 <div className="flex items-center gap-3">
@@ -292,17 +339,17 @@ export default function TransferPage({ user }: { user?: any }) {
                             </div>
                         </div>
 
-                        <div className="flex gap-4">
+                        <div className="flex flex-col sm:flex-row gap-4">
                             <button
                                 onClick={() => setStep(1)}
-                                className="flex-1 py-5 bg-white/5 rounded-2xl font-bold hover:bg-white/10 transition-colors"
+                                className="flex-1 py-4 sm:py-5 bg-white/5 rounded-2xl font-bold hover:bg-white/10 transition-colors order-2 sm:order-1"
                             >
                                 Cancel
                             </button>
                             <button
                                 disabled={loading}
                                 onClick={handleTransfer}
-                                className="flex-[2] py-5 bg-primary text-primary-foreground rounded-2xl font-black text-xl flex items-center justify-center gap-3 hover:scale-[1.02] transition-transform shadow-xl shadow-primary/20 disabled:opacity-50"
+                                className="flex-[2] py-4 sm:py-5 bg-primary text-primary-foreground rounded-2xl font-black text-lg sm:text-xl flex items-center justify-center gap-3 hover:scale-[1.02] transition-transform shadow-xl shadow-primary/20 disabled:opacity-50 order-1 sm:order-2"
                             >
                                 {loading ? <Loader2 size={24} className="animate-spin" /> : "Confirm & Send"}
                             </button>
@@ -319,9 +366,9 @@ export default function TransferPage({ user }: { user?: any }) {
                         <div className="w-24 h-24 bg-primary rounded-full flex items-center justify-center mx-auto shadow-2xl shadow-primary/40">
                             <CheckCircle2 size={48} className="text-primary-foreground" />
                         </div>
-                        <div className="space-y-2">
-                            <h2 className="text-4xl font-black font-outfit">Transfer Success!</h2>
-                            <p className="text-muted-foreground">
+                        <div className="space-y-2 px-4">
+                            <h2 className="text-3xl md:text-4xl font-black font-outfit">Transfer Success!</h2>
+                            <p className="text-sm md:text-base text-muted-foreground">
                                 The funds have been sent to {transferType === "account" ? `account ${formData.toAccount}` : (recipientName || "the specified user")}.
                             </p>
                         </div>
@@ -345,7 +392,12 @@ export default function TransferPage({ user }: { user?: any }) {
                         >
                             Make Another Transfer
                         </button>
-                        <p className="text-muted-foreground text-sm cursor-pointer hover:text-white transition-colors">Download Receipt</p>
+                        <p
+                            onClick={handleDownloadReceipt}
+                            className="text-muted-foreground text-sm cursor-pointer hover:text-white transition-colors"
+                        >
+                            Download Receipt
+                        </p>
                     </motion.div>
                 )}
             </div>

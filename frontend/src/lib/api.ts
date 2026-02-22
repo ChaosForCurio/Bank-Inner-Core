@@ -50,6 +50,7 @@ export const endpoints = {
     transactions: {
         create: "transaction",
         history: "transaction/history",
+        details: (id: string) => `transaction/${id}`,
     },
     users: {
         lookup: (uuid: string) => `users/lookup/${uuid}`,

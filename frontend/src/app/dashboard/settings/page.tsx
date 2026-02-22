@@ -64,19 +64,19 @@ export default function SettingsPage() {
                             {section.items.map((item, i) => (
                                 <div
                                     key={i}
-                                    className="p-6 flex items-center justify-between hover:bg-white/[0.02] transition-colors cursor-pointer group"
+                                    className="p-4 md:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-white/[0.02] transition-colors cursor-pointer group"
                                 >
-                                    <div className="flex items-center gap-5">
-                                        <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center group-hover:bg-primary/10 group-hover:text-primary transition-colors">
-                                            <item.icon size={22} />
+                                    <div className="flex items-start sm:items-center gap-4 sm:gap-5">
+                                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/5 rounded-2xl flex-shrink-0 flex items-center justify-center group-hover:bg-primary/10 group-hover:text-primary transition-colors mt-1 sm:mt-0">
+                                            <item.icon size={22} className="w-5 h-5 sm:w-[22px] sm:h-[22px]" />
                                         </div>
                                         <div>
-                                            <p className="font-bold text-lg">{item.label}</p>
-                                            <p className="text-xs text-muted-foreground mt-0.5">{item.description}</p>
+                                            <p className="font-bold text-base sm:text-lg">{item.label}</p>
+                                            <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 max-w-[200px] sm:max-w-none">{item.description}</p>
                                         </div>
                                     </div>
 
-                                    <div className="flex items-center gap-4">
+                                    <div className="flex items-center gap-4 self-end sm:self-auto px-14 sm:px-0 mt-2 sm:mt-0">
                                         {"toggle" in item && (
                                             <div className="w-12 h-6 bg-primary rounded-full relative shadow-inner">
                                                 <div className="absolute right-1 top-1 w-4 h-4 bg-white rounded-full shadow-lg" />

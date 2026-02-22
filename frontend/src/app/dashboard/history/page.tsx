@@ -83,11 +83,11 @@ export default function HistoryPage({ user }: { user?: any }) {
                     <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse">
                             <thead>
-                                <tr className="border-b border-white/5 uppercase text-[10px] font-black tracking-widest text-muted-foreground">
-                                    <th className="px-8 py-6">Transaction</th>
-                                    <th className="px-8 py-6">Category</th>
-                                    <th className="px-8 py-6">Date & Time</th>
-                                    <th className="px-8 py-6 text-right">Amount</th>
+                                <tr className="border-b border-white/5 uppercase text-[10px] font-black tracking-widest text-muted-foreground w-full">
+                                    <th className="px-4 py-4 md:px-8 md:py-6">Transaction</th>
+                                    <th className="hidden sm:table-cell px-4 py-4 md:px-8 md:py-6">Category</th>
+                                    <th className="hidden md:table-cell px-4 py-4 md:px-8 md:py-6">Date & Time</th>
+                                    <th className="px-4 py-4 md:px-8 md:py-6 text-right">Amount</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-white/5">
@@ -99,29 +99,34 @@ export default function HistoryPage({ user }: { user?: any }) {
                                         transition={{ delay: i * 0.03 }}
                                         className="hover:bg-white/[0.02] transition-colors cursor-pointer group"
                                     >
-                                        <td className="px-8 py-5">
-                                            <div className="flex items-center gap-4">
+                                        <td className="px-4 py-4 md:px-8 md:py-5 max-w-[150px] sm:max-w-[200px] md:max-w-none">
+                                            <div className="flex items-center gap-3 md:gap-4">
                                                 <div className={cn(
-                                                    "w-10 h-10 rounded-xl flex items-center justify-center",
+                                                    "w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center",
                                                     tx.type === "credit" ? "bg-emerald-500/10 text-emerald-500" : "bg-red-500/10 text-red-400"
                                                 )}>
                                                     {tx.type === "credit" ? <ArrowDownLeft size={18} /> : <ArrowUpRight size={18} />}
                                                 </div>
-                                                <span className="font-bold group-hover:text-primary transition-colors">
-                                                    {tx.description || "General Transfer"}
-                                                </span>
+                                                <div className="min-w-0 pr-2">
+                                                    <p className="font-bold group-hover:text-primary transition-colors truncate text-sm md:text-base">
+                                                        {tx.description || "General Transfer"}
+                                                    </p>
+                                                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider md:hidden mt-0.5 truncate">
+                                                        {formatDate(tx.created_at)}
+                                                    </p>
+                                                </div>
                                             </div>
                                         </td>
-                                        <td className="px-8 py-5">
-                                            <span className="text-xs px-3 py-1 bg-white/5 rounded-full border border-white/5 capitalize">
+                                        <td className="hidden sm:table-cell px-4 py-4 md:px-8 md:py-5">
+                                            <span className="text-[10px] md:text-xs px-2 md:px-3 py-1 bg-white/5 rounded-full border border-white/5 capitalize whitespace-nowrap">
                                                 {tx.transaction_type || "Transfer"}
                                             </span>
                                         </td>
-                                        <td className="px-8 py-5 text-sm text-muted-foreground font-medium">
+                                        <td className="hidden md:table-cell px-4 py-4 md:px-8 md:py-5 text-sm text-muted-foreground font-medium whitespace-nowrap">
                                             {formatDate(tx.created_at)}
                                         </td>
                                         <td className={cn(
-                                            "px-8 py-5 text-right font-black text-lg font-outfit",
+                                            "px-4 py-4 md:px-8 md:py-5 text-right font-black text-base md:text-lg font-outfit whitespace-nowrap",
                                             tx.type === "credit" ? "text-emerald-500" : "text-white"
                                         )}>
                                             {tx.type === "credit" ? "+" : "-"}{formatCurrency(tx.amount)}

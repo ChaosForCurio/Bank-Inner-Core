@@ -1,14 +1,45 @@
 "use client"
 import Link from "next/link"
 import { motion } from "framer-motion"
-import { ArrowRight, Shield, Zap, Globe, Github } from "lucide-react"
+import { ArrowRight, Shield, Zap, Globe, Github, CreditCard, Coins, LineChart } from "lucide-react"
 
 export default function LandingPage() {
   return (
     <div className="min-h-screen relative overflow-hidden bg-background">
-      {/* Background Glows */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/20 rounded-full blur-[120px]" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-500/10 rounded-full blur-[120px]" />
+      {/* Dynamic Background Glows */}
+      <motion.div
+        animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0.5, 0.3] }}
+        transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+        className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/20 rounded-full blur-[120px]"
+      />
+      <motion.div
+        animate={{ scale: [1, 1.2, 1], opacity: [0.2, 0.4, 0.2] }}
+        transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+        className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-500/10 rounded-full blur-[120px]"
+      />
+
+      {/* Floating Elements for Premium Feel */}
+      <motion.div
+        animate={{ y: [-20, 20, -20], rotate: [0, 5, -5, 0] }}
+        transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+        className="absolute top-[20%] right-[15%] w-24 h-24 bg-white/5 backdrop-blur-md border border-white/10 rounded-[32px] flex items-center justify-center shadow-2xl hidden lg:flex"
+      >
+        <CreditCard size={40} className="text-primary/70" />
+      </motion.div>
+      <motion.div
+        animate={{ y: [20, -20, 20], rotate: [0, -10, 10, 0] }}
+        transition={{ duration: 8, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+        className="absolute bottom-[30%] left-[10%] w-20 h-20 bg-white/5 backdrop-blur-md border border-white/10 rounded-[28px] flex items-center justify-center shadow-2xl hidden lg:flex"
+      >
+        <Coins size={36} className="text-emerald-500/70" />
+      </motion.div>
+      <motion.div
+        animate={{ y: [-15, 15, -15], rotate: [0, 8, -8, 0] }}
+        transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+        className="absolute top-[40%] left-[20%] w-16 h-16 bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl flex items-center justify-center shadow-2xl hidden lg:flex"
+      >
+        <LineChart size={28} className="text-blue-400/70" />
+      </motion.div>
 
       <nav className="relative z-10 flex items-center justify-between px-8 py-6 max-w-7xl mx-auto">
         <div className="text-2xl font-bold flex items-center gap-2">

@@ -55,15 +55,32 @@ async function createTransaction(req, res) {
             fromAccount, toAccount: targetAccountId, amount, type, idempotencyKey, status: 'pending'
         });
 
-        // B. Update balances
+        // B. Update balances (ensure deduction from sender and increase for recipient)
         const updatedFrom = await sql`
-            UPDATE accounts SET balance = balance - ${amount}, updated_at = CURRENT_TIMESTAMP
-            WHERE id = ${fromAccount} RETURNING balance
+            UPDATE accounts 
+            SET balance = balance - ${amount}, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ${fromAccount} AND balance >= ${amount}
+            RETURNING balance
         `;
+
+        if (updatedFrom.length === 0) {
+            await TransactionModel.updateStatus(transaction.id, 'failed');
+            return res.status(400).json({ message: "Insufficient balance at time of execution" });
+        }
+
         const updatedTo = await sql`
-            UPDATE accounts SET balance = balance + ${amount}, updated_at = CURRENT_TIMESTAMP
-            WHERE id = ${targetAccountId} RETURNING balance
+            UPDATE accounts 
+            SET balance = balance + ${amount}, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ${targetAccountId}
+            RETURNING balance
         `;
+
+        if (updatedTo.length === 0) {
+            // Rollback balance deduction if recipient update fails
+            await sql`UPDATE accounts SET balance = balance + ${amount} WHERE id = ${fromAccount}`;
+            await TransactionModel.updateStatus(transaction.id, 'failed');
+            return res.status(500).json({ message: "Recipient account update failed" });
+        }
 
         // C. Create Ledger entries
         await LedgerModel.create({
@@ -145,15 +162,32 @@ async function createInitialFundsTransaction(req, res) {
             status: 'pending'
         });
 
-        // B. Update balances
+        // B. Update balances (ensure deduction from system and increase for user)
         const updatedFrom = await sql`
-            UPDATE accounts SET balance = balance - ${amount}, updated_at = CURRENT_TIMESTAMP
-            WHERE id = ${fromAcc.id} RETURNING balance
+            UPDATE accounts 
+            SET balance = balance - ${amount}, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ${fromAcc.id} AND balance >= ${amount}
+            RETURNING balance
         `;
+
+        if (updatedFrom.length === 0) {
+            await TransactionModel.updateStatus(transaction.id, 'failed');
+            return res.status(400).json({ message: "System account has insufficient funds" });
+        }
+
         const updatedTo = await sql`
-            UPDATE accounts SET balance = balance + ${amount}, updated_at = CURRENT_TIMESTAMP
-            WHERE id = ${toAccount} RETURNING balance
+            UPDATE accounts 
+            SET balance = balance + ${amount}, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ${toAccount}
+            RETURNING balance
         `;
+
+        if (updatedTo.length === 0) {
+            // Rollback system deduction if user update fails
+            await sql`UPDATE accounts SET balance = balance + ${amount} WHERE id = ${fromAcc.id}`;
+            await TransactionModel.updateStatus(transaction.id, 'failed');
+            return res.status(500).json({ message: "Recipient account update failed" });
+        }
 
         // C. Create Ledger entries
         await LedgerModel.create({
@@ -230,8 +264,50 @@ async function getTransactionHistory(req, res) {
     }
 }
 
+/**
+ * getTransactionById - Fetch single transaction details
+ */
+async function getTransactionById(req, res) {
+    try {
+        const { id } = req.params;
+        const userId = req.user.id;
+
+        // 1. Fetch transaction
+        const transaction = await sql`
+            SELECT * FROM transactions WHERE id = ${id}
+        `;
+
+        if (transaction.length === 0) {
+            return res.status(404).json({ message: "Transaction not found" });
+        }
+
+        // 2. Verify user has access (must be sender or receiver)
+        const accounts = await AccountModel.findByUserId(userId);
+        const accountIds = accounts.map(acc => acc.id);
+
+        if (!accountIds.includes(transaction[0].from_account) && !accountIds.includes(transaction[0].to_account)) {
+            return res.status(403).json({ message: "Access denied" });
+        }
+
+        // 3. Get ledger entries for context
+        const ledgers = await sql`
+            SELECT * FROM ledgers WHERE transaction_id = ${id}
+        `;
+
+        return res.status(200).json({
+            status: "success",
+            transaction: transaction[0],
+            ledgers
+        });
+    } catch (error) {
+        console.error("Get transaction by ID error:", error);
+        return res.status(500).json({ message: "Failed to retrieve transaction details" });
+    }
+}
+
 module.exports = {
     createTransaction,
     createInitialFundsTransaction,
-    getTransactionHistory
+    getTransactionHistory,
+    getTransactionById
 };

@@ -11,7 +11,9 @@ import {
     User,
     Bell,
     Search,
-    Loader2
+    Loader2,
+    Menu,
+    X as CloseIcon
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { motion } from "framer-motion"
@@ -32,6 +34,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const router = useRouter()
     const [user, setUser] = useState<any>(null)
     const [loading, setLoading] = useState(true)
+    const [sidebarOpen, setSidebarOpen] = useState(false)
+
+    // Close sidebar on route change
+    useEffect(() => {
+        setSidebarOpen(false)
+    }, [pathname])
 
     useEffect(() => {
         const fetchUserData = async () => {
@@ -79,16 +87,33 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
 
     return (
-        <div className="flex h-screen bg-background overflow-hidden font-outfit">
+        <div className="flex h-screen bg-background overflow-hidden font-outfit relative">
+            {/* Mobile Sidebar Overlay */}
+            {sidebarOpen && (
+                <div
+                    className="fixed inset-0 bg-black/50 z-20 md:hidden backdrop-blur-sm transition-opacity"
+                    onClick={() => setSidebarOpen(false)}
+                />
+            )}
+
             {/* Sidebar */}
-            <aside className="w-72 border-r border-white/5 bg-[#0a0f18] flex flex-col z-20">
-                <div className="p-8">
+            <aside className={cn(
+                "fixed md:relative w-72 h-full border-r border-white/5 bg-[#0a0f18] flex flex-col z-30 transition-transform duration-300 ease-in-out md:translate-x-0",
+                sidebarOpen ? "translate-x-0" : "-translate-x-full"
+            )}>
+                <div className="p-8 flex justify-between items-center">
                     <Link href="/dashboard" className="text-xl font-black flex items-center gap-3">
                         <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20 hover:scale-110 transition-transform">
                             <span className="text-primary-foreground font-black text-sm">X</span>
                         </div>
                         <span className="tracking-tight">Xieriee bank</span>
                     </Link>
+                    <button
+                        className="md:hidden text-muted-foreground hover:text-white"
+                        onClick={() => setSidebarOpen(false)}
+                    >
+                        <CloseIcon size={24} />
+                    </button>
                 </div>
 
                 <nav className="flex-1 px-4 space-y-2 overflow-y-auto">
@@ -130,19 +155,28 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 flex flex-col overflow-hidden relative">
+            <main className="flex-1 flex flex-col overflow-hidden relative min-w-0">
                 {/* Header */}
-                <header className="h-24 px-10 flex items-center justify-between glass z-10 border-b border-white/5">
-                    <div className="flex items-center gap-4 bg-white/5 px-6 py-3 rounded-2xl border border-white/5 min-w-[350px] group focus-within:border-primary/50 transition-colors">
-                        <Search size={18} className="text-muted-foreground group-focus-within:text-primary transition-colors" />
-                        <input
-                            type="text"
-                            placeholder="Search transactions, accounts..."
-                            className="bg-transparent border-none outline-none text-sm w-full font-medium"
-                        />
+                <header className="h-20 md:h-24 px-4 md:px-10 flex items-center justify-between glass z-10 border-b border-white/5 gap-4">
+                    <div className="flex items-center gap-4 flex-1">
+                        <button
+                            className="md:hidden p-2 -ml-2 text-muted-foreground hover:text-white transition-colors"
+                            onClick={() => setSidebarOpen(true)}
+                        >
+                            <Menu size={24} />
+                        </button>
+
+                        <div className="flex items-center gap-4 bg-white/5 px-4 md:px-6 py-2 md:py-3 rounded-2xl border border-white/5 flex-1 md:flex-none md:min-w-[350px] group focus-within:border-primary/50 transition-colors">
+                            <Search size={18} className="text-muted-foreground group-focus-within:text-primary transition-colors flex-shrink-0" />
+                            <input
+                                type="text"
+                                placeholder="Search..."
+                                className="bg-transparent border-none outline-none text-sm w-full font-medium"
+                            />
+                        </div>
                     </div>
 
-                    <div className="flex items-center gap-8">
+                    <div className="flex items-center gap-4 md:gap-8 flex-shrink-0">
                         <div className="flex items-center gap-4">
                             <button className="relative w-12 h-12 flex items-center justify-center rounded-2xl bg-white/5 hover:bg-white/10 transition-all hover:scale-105 border border-white/5">
                                 <Bell size={20} />
