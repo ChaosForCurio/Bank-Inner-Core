@@ -44,4 +44,28 @@ app.use("/api/account", accountRouter)
 app.use("/api/transaction", transactionRouter)
 app.use("/api/users", userRouter)
 
+// 404 Handler
+app.use((req, res, next) => {
+    const error = new Error(`Route not found: ${req.originalUrl}`);
+    error.status = 404;
+    next(error);
+});
+
+// Global Error Handler
+
+app.use((err, req, res, next) => {
+    console.error(`[${new Date().toISOString()}] Error: ${req.method} ${req.originalUrl}`, err);
+
+    // Default to 500 if no status code is provided
+    const statusCode = err.status || err.statusCode || 500;
+    const message = err.message || "Internal Server Error";
+
+    res.status(statusCode).json({
+        success: false,
+        message: message,
+        // Include stack trace only in development (simplified check)
+        stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    });
+});
+
 module.exports = app

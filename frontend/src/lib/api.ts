@@ -2,7 +2,9 @@ import axios, { AxiosError } from "axios";
 import { getCookie } from "cookies-next";
 
 // Ensure the base URL ends with a slash to avoid mangled paths when joining relative endpoints
-const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api").replace(/\/?$/, '/');
+// In production on Vercel, we use relative /api paths to benefit from same-domain proxying
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || (typeof window !== 'undefined' ? (window.location.hostname === 'localhost' ? "http://localhost:5000/api" : "/api") : "http://localhost:5000/api")).replace(/\/?$/, '/');
+
 
 export const api = axios.create({
     baseURL: API_BASE_URL,
@@ -20,13 +22,22 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
     (response) => response,
     (error: AxiosError) => {
+        // Handle Network Errors (no response from server)
+        if (!error.response) {
+            console.error("Network Error: Backend might be down.", error.message);
+            // We can return a custom error message or structure
+            const networkError = {
+                message: "Server is unreachable. Please check if the backend is running.",
+                isNetworkError: true
+            };
+            return Promise.reject(networkError);
+        }
+
         if (error.response?.status === 401) {
             // Check if we already have a token, if so, it's probably expired
             const token = typeof window !== 'undefined' ? document.cookie.includes('token=') : false;
             if (token) {
                 console.warn("Session expired (401), clearing local state...");
-                // Note: Actual cookie clearing usually happens on the server/logout, 
-                // but we can proactively redirect or clear local state here if needed.
                 if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
                     window.location.href = '/login';
                 }
