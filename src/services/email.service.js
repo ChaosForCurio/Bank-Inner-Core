@@ -2,6 +2,10 @@ const { Resend } = require('resend');
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+const SENDER_EMAIL = 'notifications@bank-inner-core-4s7p.vercel.com';
+const WELCOME_SENDER = `Xieriee Bank <${SENDER_EMAIL}>`;
+const NOTIFICATION_SENDER = `Secure Banking <${SENDER_EMAIL}>`;
+
 /**
  * Send a welcome email to a new user.
  * @param {string} email - The recipient's email address.
@@ -13,7 +17,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 async function sendWelcomeEmail(email, name, subject = "Welcome to Bank Inner Core", html) {
     try {
         const { data, error } = await resend.emails.send({
-            from: 'Acme <FromHeavenToHorizon@gmail.com>',
+            from: WELCOME_SENDER,
             to: email,
             subject: subject,
             html: html || `<p>Hello ${name}, Thank You for Registering with Bank Inner Core</p>`,
@@ -32,10 +36,10 @@ async function sendWelcomeEmail(email, name, subject = "Welcome to Bank Inner Co
 async function sendTransactionEmail(userEmail, username, transactionId, amount, type) {
     try {
         const { data, error } = await resend.emails.send({
-            from: 'Sukuna <FromHeavenToHorizon@gmail.com>',
+            from: NOTIFICATION_SENDER,
             to: userEmail,
             subject: 'Transaction Notification',
-            html: `<p>Hello ${username},</p><p>Transaction ID: ${transactionId}</p><p>Transaction Amount: ${amount}</p><p>Transaction Type: ${type}</p><p>Transaction Status: ${transaction.status}</p>`,
+            html: `<p>Hello ${username},</p><p>Transaction ID: ${transactionId}</p><p>Transaction Amount: ${amount}</p><p>Transaction Type: ${type}</p><p>Transaction Status: SUCCESS</p>`,
         });
 
         if (error) {
@@ -52,10 +56,10 @@ async function sendTransactionEmail(userEmail, username, transactionId, amount, 
 async function sendTransactionFailEmail(userEmail, username, transactionId, amount, type) {
     try {
         const { data, error } = await resend.emails.send({
-            from: 'Sukuna <FromHeavenToHorizon@gmail.com>',
+            from: NOTIFICATION_SENDER,
             to: userEmail,
-            subject: 'Transaction Notification',
-            html: `<p>Hello ${username},</p><p>Transaction ID: ${transactionId}</p><p>Transaction Amount: ${amount}</p><p>Transaction Type: ${type}</p><p>Transaction Status: ${transaction.status}</p>`,
+            subject: 'Transaction Notification - Failed',
+            html: `<p>Hello ${username},</p><p>Transaction ID: ${transactionId}</p><p>Transaction Amount: ${amount}</p><p>Transaction Type: ${type}</p><p>Transaction Status: FAILED</p>`,
         });
 
         if (error) {
@@ -71,7 +75,7 @@ async function sendTransactionFailEmail(userEmail, username, transactionId, amou
 async function sendLoginEmail(email, name) {
     try {
         const { data, error } = await resend.emails.send({
-            from: 'Sukuna <FromHeavenToHorizon@gmail.com>',
+            from: NOTIFICATION_SENDER,
             to: email,
             subject: 'Login Notification',
             html: `<p>Hello ${name},</p><p>You have successfully logged in to Bank Inner Core.</p>`,
