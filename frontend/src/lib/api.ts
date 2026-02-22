@@ -3,7 +3,7 @@ import { getCookie } from "cookies-next";
 
 // Ensure the base URL ends with a slash to avoid mangled paths when joining relative endpoints
 // In production on Vercel, we use relative /api paths to benefit from same-domain proxying
-const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || (typeof window !== 'undefined' ? (window.location.hostname === 'localhost' ? "http://localhost:5000/api" : "/api") : "http://localhost:5000/api")).replace(/\/?$/, '/');
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api").replace(/\/?$/, '/');
 
 
 export const api = axios.create({
