@@ -1,4 +1,5 @@
 const UserModel = require("../models/user.model")
+const AccountModel = require("../models/account.model")
 const { sendWelcomeEmail, sendLoginEmail } = require("../services/email.service")
 const jwt = require("jsonwebtoken")
 
@@ -19,6 +20,9 @@ async function userRegisterController(req, res) {
 
         const user = await UserModel.create({ email, password, name })
 
+        // Create a primary account for the new user automatically
+        const account = await AccountModel.create({ userId: user.id })
+
         // Send welcome email (non-blocking)
         sendWelcomeEmail(user.email, user.name).catch(console.error)
 
@@ -37,9 +41,11 @@ async function userRegisterController(req, res) {
             status: "success",
             user: {
                 id: user.id,
+                uuid: user.uuid,
                 name: user.name,
                 email: user.email,
-                status: user.status
+                status: user.status,
+                accountId: account.id
             },
             token
         })
@@ -95,6 +101,7 @@ async function userLoginController(req, res) {
             status: "success",
             user: {
                 id: user.id,
+                uuid: user.uuid,
                 name: user.name,
                 email: user.email
             },
@@ -110,4 +117,29 @@ async function userLoginController(req, res) {
     }
 }
 
-module.exports = { userRegisterController, userLoginController }
+/**
+ * userLogoutController
+ * post /api/auth/logout
+ */
+async function userLogoutController(req, res) {
+    try {
+        res.clearCookie("token", {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "strict",
+        });
+
+        return res.status(200).json({
+            status: "success",
+            message: "Logged out successfully"
+        });
+    } catch (error) {
+        console.error("Logout Controller Error:", error);
+        return res.status(500).json({
+            message: error.message,
+            status: "failed",
+        });
+    }
+}
+
+module.exports = { userRegisterController, userLoginController, userLogoutController }

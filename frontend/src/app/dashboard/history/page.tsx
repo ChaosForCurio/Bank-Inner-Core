@@ -14,8 +14,8 @@ import { formatCurrency, formatDate, cn } from "@/lib/utils"
 import { api, endpoints } from "@/lib/api"
 import toast from "react-hot-toast"
 
-export default function HistoryPage() {
-    const [transactions, setTransactions] = useState([])
+export default function HistoryPage({ user }: { user?: any }) {
+    const [transactions, setTransactions] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState("")
 

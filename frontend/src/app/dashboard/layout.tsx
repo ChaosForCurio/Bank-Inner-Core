@@ -48,20 +48,32 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         fetchUserData()
     }, [router])
 
-    const handleLogout = () => {
+    const handleLogout = async () => {
+        try {
+            await api.post(endpoints.auth.logout)
+        } catch (error) {
+            console.error("Logout error:", error)
+        }
         deleteCookie("token")
         router.push("/")
     }
 
     if (loading) {
         return (
-            <div className="h-screen w-full flex items-center justify-center bg-[#0a0f18]">
-                <div className="flex flex-col items-center gap-4">
-                    <div className="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center animate-bounce shadow-2xl shadow-primary/40">
-                        <span className="text-primary-foreground font-black text-xl">X</span>
+            <div className="fixed inset-0 bg-[#0a0f18] z-[100] flex flex-col items-center justify-center">
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="relative"
+                >
+                    <div className="absolute inset-0 bg-primary/20 blur-[60px] animate-pulse rounded-full" />
+                    <div className="relative text-7xl font-black italic tracking-tighter text-primary select-none font-outfit">
+                        X
                     </div>
-                    <Loader2 className="animate-spin text-primary/40" size={24} />
-                </div>
+                </motion.div>
+                <p className="mt-8 text-muted-foreground/50 text-xs font-black uppercase tracking-[0.3em] font-outfit animate-pulse">
+                    Initializing Core
+                </p>
             </div>
         )
     }
@@ -159,7 +171,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[120px] pointer-events-none -translate-y-1/2 translate-x-1/2" />
                     <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-emerald-500/5 rounded-full blur-[100px] pointer-events-none translate-y-1/2 -translate-x-1/2" />
                     <div className="relative z-0">
-                        {children}
+                        {user && typeof children === 'object' && children !== null ? (
+                            Array.isArray(children)
+                                ? children.map((child: any) =>
+                                    child && typeof child === 'object' && 'type' in child
+                                        ? { ...child, props: { ...child.props, user } }
+                                        : child
+                                )
+                                : { ...(children as any), props: { ...(children as any).props, user } }
+                        ) : (
+                            children
+                        )}
                     </div>
                 </div>
             </main>

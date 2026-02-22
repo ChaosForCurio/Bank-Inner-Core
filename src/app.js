@@ -4,12 +4,28 @@ const cors = require("cors")
 const authRouter = require("./routes/auth.route")
 const accountRouter = require("./routes/account.routes")
 const transactionRouter = require("./routes/transaction.routes")
+const userRouter = require("./routes/user.route")
 
 const app = express()
 
 // Middleware
+const allowedOrigins = [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://localhost:3002",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:3001",
+    "http://127.0.0.1:3002"
+];
+
 app.use(cors({
-    origin: "http://localhost:3000",
+    origin: function (origin, callback) {
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     credentials: true
 }))
 
@@ -25,5 +41,6 @@ app.use(express.json())
 app.use("/api/auth", authRouter)
 app.use("/api/account", accountRouter)
 app.use("/api/transaction", transactionRouter)
+app.use("/api/users", userRouter)
 
 module.exports = app

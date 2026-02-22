@@ -6,6 +6,7 @@ const router = express.Router()
 
 router.post("/register", authController.userRegisterController)
 router.post("/login", authController.userLoginController)
+router.post("/logout", authController.userLogoutController)
 
 router.get("/me", authMiddleware.authMiddleware, (req, res) => {
     res.json({

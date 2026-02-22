@@ -37,8 +37,6 @@ const AccountModel = {
         } catch (error) {
             console.error("Error in AccountModel.findByUserId:", error);
             throw error;
-
-
         }
     },
 
@@ -77,8 +75,26 @@ const AccountModel = {
             console.error("Error in AccountModel.updateBalance:", error);
             throw error;
         }
+    },
+
+    /**
+     * findPrimaryByUserId - Find the primary account for a user
+     * @param {string} userId 
+     */
+    async findPrimaryByUserId(userId) {
+        try {
+            const accounts = await sql`
+                SELECT * FROM accounts 
+                WHERE user_id = ${userId}
+                ORDER BY created_at ASC
+                LIMIT 1
+            `;
+            return accounts[0];
+        } catch (error) {
+            console.error("Error in AccountModel.findPrimaryByUserId:", error);
+            throw error;
+        }
     }
 };
-
 
 module.exports = AccountModel;

@@ -8,23 +8,37 @@ const { sql } = require("../db");
  * createTransaction - Standard user-to-user transfer
  */
 async function createTransaction(req, res) {
-    const { fromAccount, toAccount, amount, type, idempotencyKey } = req.body;
+    const { fromAccount, toAccount, toUserUuid, amount, type, idempotencyKey } = req.body;
 
-    if (!fromAccount || !toAccount || !amount || !type || !idempotencyKey) {
+    if (!fromAccount || (!toAccount && !toUserUuid) || !amount || !type || !idempotencyKey) {
         return res.status(400).json({ message: "All fields are required" });
     }
 
     try {
+        const UserModel = require("../models/user.model");
         // 1. Verify fromAccount belongs to user
         const fromAcc = await AccountModel.findById(fromAccount);
         if (!fromAcc || fromAcc.user_id !== req.user.id) {
             return res.status(404).json({ message: "From account not found or access denied" });
         }
 
-        // 2. Verify toAccount
-        const toAcc = await AccountModel.findById(toAccount);
+        // 2. Resolve toAccount if UUID is provided
+        let targetAccountId = toAccount;
+        if (toUserUuid) {
+            const targetUser = await UserModel.findByUuid(toUserUuid);
+            if (!targetUser) {
+                return res.status(404).json({ message: "Recipient user not found" });
+            }
+            const primaryAcc = await AccountModel.findPrimaryByUserId(targetUser.id);
+            if (!primaryAcc) {
+                return res.status(404).json({ message: "Recipient has no active bank account" });
+            }
+            targetAccountId = primaryAcc.id;
+        }
+
+        const toAcc = await AccountModel.findById(targetAccountId);
         if (!toAcc) {
-            return res.status(404).json({ message: "To account not found" });
+            return res.status(404).json({ message: "Destination account not found" });
         }
 
         if (fromAcc.status !== "active" || toAcc.status !== "active") {
@@ -38,7 +52,7 @@ async function createTransaction(req, res) {
         // Sequential SQL calls (Neon Serverless HTTP driver pattern)
         // A. Create transaction record
         const transaction = await TransactionModel.create({
-            fromAccount, toAccount, amount, type, idempotencyKey, status: 'pending'
+            fromAccount, toAccount: targetAccountId, amount, type, idempotencyKey, status: 'pending'
         });
 
         // B. Update balances
@@ -48,7 +62,7 @@ async function createTransaction(req, res) {
         `;
         const updatedTo = await sql`
             UPDATE accounts SET balance = balance + ${amount}, updated_at = CURRENT_TIMESTAMP
-            WHERE id = ${toAccount} RETURNING balance
+            WHERE id = ${targetAccountId} RETURNING balance
         `;
 
         // C. Create Ledger entries
@@ -58,11 +72,11 @@ async function createTransaction(req, res) {
             amount,
             type: "debit",
             balance: updatedFrom[0].balance,
-            description: `Transfer to account ${toAccount}`
+            description: `Transfer to account ${targetAccountId}`
         });
 
         await LedgerModel.create({
-            accountId: toAccount,
+            accountId: targetAccountId,
             transactionId: transaction.id,
             amount,
             type: "credit",
@@ -75,7 +89,7 @@ async function createTransaction(req, res) {
 
         // Notifications (non-blocking)
         emailService.sendTransactionEmail(req.user.email, req.user.name, req.user.id, {
-            amount, type: "debit", toAccount, transactionId: transaction.id
+            amount, type: "debit", toAccount: targetAccountId, transactionId: transaction.id
         }).catch(console.error);
 
         return res.status(201).json({

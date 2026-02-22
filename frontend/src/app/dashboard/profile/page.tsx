@@ -5,23 +5,28 @@ import { User, Mail, Shield, Smartphone, MapPin, Edit3, Loader2 } from "lucide-r
 import { api, endpoints } from "@/lib/api"
 import toast from "react-hot-toast"
 
-export default function ProfilePage() {
-    const [user, setUser] = useState<any>(null)
-    const [loading, setLoading] = useState(true)
+export default function ProfilePage({ user: initialUser }: { user?: any }) {
+    const [user, setUser] = useState<any>(initialUser)
+    const [loading, setLoading] = useState(!initialUser)
 
     useEffect(() => {
-        const fetchUser = async () => {
-            try {
-                const response = await api.get(endpoints.auth.me)
-                setUser(response.data)
-            } catch (error) {
-                toast.error("Failed to load profile")
-            } finally {
-                setLoading(false)
+        if (initialUser) {
+            setUser(initialUser)
+            setLoading(false)
+        } else {
+            const fetchUser = async () => {
+                try {
+                    const response = await api.get(endpoints.auth.me)
+                    setUser(response.data)
+                } catch (error) {
+                    toast.error("Failed to load profile")
+                } finally {
+                    setLoading(false)
+                }
             }
+            fetchUser()
         }
-        fetchUser()
-    }, [])
+    }, [initialUser])
 
     if (loading) {
         return (
@@ -99,6 +104,22 @@ export default function ProfilePage() {
                                 <p className="text-[10px] uppercase font-black text-muted-foreground">Mobile Number</p>
                                 <p className="font-bold">+91 98765 43210</p>
                             </div>
+                        </div>
+                        <div className="flex items-center gap-4 bg-white/5 p-4 rounded-2xl">
+                            <Shield size={20} className="text-primary" />
+                            <div className="flex-1 min-w-0">
+                                <p className="text-[10px] uppercase font-black text-muted-foreground">User ID (UUID)</p>
+                                <p className="font-mono text-sm font-bold truncate">{user?.uuid || "Generating..."}</p>
+                            </div>
+                            <button
+                                onClick={() => {
+                                    navigator.clipboard.writeText(user?.uuid)
+                                    toast.success("UUID Copied!")
+                                }}
+                                className="text-xs font-bold text-primary hover:underline"
+                            >
+                                Copy
+                            </button>
                         </div>
                         <div className="flex items-center gap-4 bg-white/5 p-4 rounded-2xl">
                             <MapPin size={20} className="text-muted-foreground" />

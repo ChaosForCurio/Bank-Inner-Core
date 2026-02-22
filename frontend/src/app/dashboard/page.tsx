@@ -16,8 +16,8 @@ import { api, endpoints } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
 
-export default function Dashboard() {
-    const [user, setUser] = useState<any>(null)
+export default function Dashboard({ user: initialUser }: { user?: any }) {
+    const [user, setUser] = useState<any>(initialUser)
     const [accounts, setAccounts] = useState<any[]>([])
     const [transactions, setTransactions] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
@@ -25,14 +25,12 @@ export default function Dashboard() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [userRes, accountsRes, historyRes] = await Promise.all([
-                    api.get(endpoints.auth.me),
+                const [accountsRes, historyRes] = await Promise.all([
                     api.get(endpoints.accounts.list),
                     api.get(endpoints.transactions.history)
                 ])
-                setUser(userRes.data)
-                setAccounts(accountsRes.data)
-                setTransactions(historyRes.data.slice(0, 5)) // Get recent 5
+                setAccounts(accountsRes.data.accounts || [])
+                setTransactions((historyRes.data.transactions || []).slice(0, 5)) // Get recent 5
             } catch (error) {
                 console.error("Dashboard data fetch error:", error)
             } finally {
@@ -41,6 +39,10 @@ export default function Dashboard() {
         }
         fetchData()
     }, [])
+
+    useEffect(() => {
+        if (initialUser) setUser(initialUser)
+    }, [initialUser])
 
     const primaryAccount = accounts[0]
     const balance = primaryAccount?.balance || 0

@@ -7,7 +7,7 @@ import { api, endpoints } from "@/lib/api"
 import toast from "react-hot-toast"
 import { cn } from "@/lib/utils"
 
-export default function TransferPage() {
+export default function TransferPage({ user }: { user?: any }) {
     const [step, setStep] = useState(1)
     const [loading, setLoading] = useState(false)
     const [accounts, setAccounts] = useState<any[]>([])
@@ -15,18 +15,23 @@ export default function TransferPage() {
     const [accountsLoading, setAccountsLoading] = useState(true)
     const [formData, setFormData] = useState({
         toAccount: "",
+        toUserUuid: "",
         amount: "",
         idempotencyKey: `tx_${Date.now()}`
     })
+    const [transferType, setTransferType] = useState<"account" | "uuid">("account")
+    const [recipientName, setRecipientName] = useState<string | null>(null)
+    const [resolvingUuid, setResolvingUuid] = useState(false)
     const [recentResult, setRecentResult] = useState<any>(null)
 
     useEffect(() => {
         const fetchAccounts = async () => {
             try {
                 const response = await api.get(endpoints.accounts.list)
-                setAccounts(response.data)
-                if (response.data.length > 0) {
-                    setSelectedAccount(response.data[0])
+                const accountsData = response.data.accounts || []
+                setAccounts(accountsData)
+                if (accountsData.length > 0) {
+                    setSelectedAccount(accountsData[0])
                 }
             } catch (error) {
                 console.error("Failed to fetch accounts:", error)
@@ -38,15 +43,45 @@ export default function TransferPage() {
         fetchAccounts()
     }, [])
 
+    const handleLookupUuid = async () => {
+        if (formData.toUserUuid.length < 8) return
+
+        setResolvingUuid(true)
+        setRecipientName(null)
+        try {
+            const response = await api.get(endpoints.users!.lookup(formData.toUserUuid))
+            if (response.data.status === "success") {
+                setRecipientName(response.data.user.name)
+                toast.success(`Found User: ${response.data.user.name}`)
+            }
+        } catch (error) {
+            setRecipientName(null)
+        } finally {
+            setResolvingUuid(false)
+        }
+    }
+
     const handleNext = () => {
         if (!selectedAccount) {
             toast.error("Please select a source account")
             return
         }
-        if (!formData.toAccount || !formData.amount) {
-            toast.error("Please fill in all fields")
+
+        if (transferType === "account" && !formData.toAccount) {
+            toast.error("Please enter a destination account ID")
             return
         }
+
+        if (transferType === "uuid" && !formData.toUserUuid) {
+            toast.error("Please enter a User UUID")
+            return
+        }
+
+        if (!formData.amount) {
+            toast.error("Please enter an amount")
+            return
+        }
+
         if (parseFloat(formData.amount) > selectedAccount.balance) {
             toast.error("Insufficient balance")
             return
@@ -57,13 +92,20 @@ export default function TransferPage() {
     const handleTransfer = async () => {
         setLoading(true)
         try {
-            const response = await api.post(endpoints.transactions.create, {
+            const payload: any = {
                 fromAccount: selectedAccount.id,
-                toAccount: formData.toAccount,
                 amount: parseFloat(formData.amount),
                 type: "transfer",
                 idempotencyKey: formData.idempotencyKey
-            })
+            }
+
+            if (transferType === "account") {
+                payload.toAccount = formData.toAccount
+            } else {
+                payload.toUserUuid = formData.toUserUuid
+            }
+
+            const response = await api.post(endpoints.transactions.create, payload)
             setRecentResult(response.data.data)
             toast.success("Transaction Complete")
             setStep(3)
@@ -116,7 +158,7 @@ export default function TransferPage() {
                                     className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-lg font-bold outline-none focus:border-primary transition-all appearance-none cursor-pointer"
                                     value={selectedAccount?.id}
                                     onChange={(e) => {
-                                        const acc = accounts.find(a => a.id === e.target.value)
+                                        const acc = accounts.find(a => a.id.toString() === e.target.value)
                                         setSelectedAccount(acc)
                                     }}
                                 >
@@ -130,18 +172,63 @@ export default function TransferPage() {
                             </div>
                         </div>
 
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between px-2">
-                                <span className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Receiver Account ID</span>
-                                <span className="text-xs text-primary flex items-center gap-1 cursor-pointer hover:underline"><Search size={12} /> Find Contact</span>
+                        <div className="space-y-6">
+                            <div className="flex bg-white/5 p-1 rounded-2xl border border-white/5">
+                                <button
+                                    onClick={() => setTransferType("account")}
+                                    className={cn(
+                                        "flex-1 py-3 rounded-xl font-bold text-sm transition-all",
+                                        transferType === "account" ? "bg-primary text-primary-foreground shadow-lg" : "text-muted-foreground hover:text-white"
+                                    )}
+                                >
+                                    Account ID
+                                </button>
+                                <button
+                                    onClick={() => setTransferType("uuid")}
+                                    className={cn(
+                                        "flex-1 py-3 rounded-xl font-bold text-sm transition-all",
+                                        transferType === "uuid" ? "bg-primary text-primary-foreground shadow-lg" : "text-muted-foreground hover:text-white"
+                                    )}
+                                >
+                                    User UUID
+                                </button>
                             </div>
-                            <input
-                                type="text"
-                                placeholder="Ex. 4"
-                                className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-xl font-bold outline-none focus:border-primary transition-all"
-                                value={formData.toAccount}
-                                onChange={e => setFormData({ ...formData, toAccount: e.target.value })}
-                            />
+
+                            {transferType === "account" ? (
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between px-2">
+                                        <span className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Receiver Account ID</span>
+                                        <span className="text-xs text-primary flex items-center gap-1 cursor-pointer hover:underline"><Search size={12} /> Find Contact</span>
+                                    </div>
+                                    <input
+                                        type="text"
+                                        placeholder="Ex. 4"
+                                        className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-xl font-bold outline-none focus:border-primary transition-all"
+                                        value={formData.toAccount}
+                                        onChange={e => setFormData({ ...formData, toAccount: e.target.value })}
+                                    />
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between px-2">
+                                        <span className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Receiver User UUID</span>
+                                        {recipientName && <span className="text-xs text-green-400 font-bold flex items-center gap-1"><CheckCircle2 size={12} /> {recipientName}</span>}
+                                    </div>
+                                    <div className="relative">
+                                        <input
+                                            type="text"
+                                            placeholder="Enter 8+ digits of UUID..."
+                                            className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-lg font-bold outline-none focus:border-primary transition-all pr-14"
+                                            value={formData.toUserUuid}
+                                            onChange={e => setFormData({ ...formData, toUserUuid: e.target.value })}
+                                            onBlur={handleLookupUuid}
+                                        />
+                                        <div className="absolute right-5 top-1/2 -translate-y-1/2">
+                                            {resolvingUuid ? <Loader2 className="animate-spin text-primary" size={20} /> : <Search size={20} className="text-muted-foreground" />}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         <div className="space-y-4">
@@ -194,7 +281,11 @@ export default function TransferPage() {
                                 <div className="flex items-center gap-3 text-right">
                                     <div className="text-right">
                                         <p className="text-[10px] text-muted-foreground uppercase font-black">To</p>
-                                        <p className="font-bold">Account ({formData.toAccount})</p>
+                                        <p className="font-bold">
+                                            {transferType === "account"
+                                                ? `Account (${formData.toAccount})`
+                                                : `${recipientName || "User"} (${formData.toUserUuid.slice(0, 8)}...)`}
+                                        </p>
                                     </div>
                                     <div className="w-10 h-10 bg-primary/20 rounded-xl flex items-center justify-center text-primary"><Send size={20} /></div>
                                 </div>
@@ -230,7 +321,9 @@ export default function TransferPage() {
                         </div>
                         <div className="space-y-2">
                             <h2 className="text-4xl font-black font-outfit">Transfer Success!</h2>
-                            <p className="text-muted-foreground">The funds have been sent to account {formData.toAccount}.</p>
+                            <p className="text-muted-foreground">
+                                The funds have been sent to {transferType === "account" ? `account ${formData.toAccount}` : (recipientName || "the specified user")}.
+                            </p>
                         </div>
                         <div className="bg-white/5 rounded-3xl p-6 text-sm">
                             <div className="flex justify-between mb-2">
@@ -245,7 +338,8 @@ export default function TransferPage() {
                         <button
                             onClick={() => {
                                 setStep(1);
-                                setFormData({ toAccount: "", amount: "", idempotencyKey: `tx_${Date.now()}` });
+                                setFormData({ toAccount: "", toUserUuid: "", amount: "", idempotencyKey: `tx_${Date.now()}` });
+                                setRecipientName(null);
                             }}
                             className="w-full py-5 bg-primary text-primary-foreground rounded-2xl font-black text-xl hover:scale-105 transition-transform"
                         >

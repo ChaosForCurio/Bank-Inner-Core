@@ -29,6 +29,19 @@ const UserModel = {
     },
 
     /**
+     * findByUuid - Find a user by UUID
+     */
+    async findByUuid(uuid) {
+        try {
+            const users = await sql`SELECT * FROM users WHERE uuid = ${uuid} LIMIT 1`;
+            return users.length > 0 ? users[0] : null;
+        } catch (error) {
+            console.error("Error in UserModel.findByUuid:", error);
+            throw error;
+        }
+    },
+
+    /**
      * create - Create a new user
      */
     async create({ email, password, name, isSystem = false }) {
@@ -39,7 +52,7 @@ const UserModel = {
             const users = await sql`
         INSERT INTO users (email, password, name, status, is_system)
         VALUES (${email}, ${hashedPassword}, ${name}, 'active', ${isSystem})
-        RETURNING id, email, name, status, is_system, created_at
+        RETURNING id, uuid, email, name, status, is_system, created_at
       `;
 
             const user = users[0];
