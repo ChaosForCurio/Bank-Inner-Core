@@ -10,10 +10,29 @@ const jwt = require("jsonwebtoken")
 async function userRegisterController(req, res) {
     try {
         const { email, password, name } = req.body
+
+        // Input Validation
+        if (!email || !password || !name) {
+            return res.status(400).json({
+                success: false,
+                message: "Missing required fields: email, password, and name are required",
+                status: "failed",
+            })
+        }
+
+        if (password.length < 6) {
+            return res.status(400).json({
+                success: false,
+                message: "Password must be at least 6 characters long",
+                status: "failed",
+            })
+        }
+
         const userExist = await UserModel.findOne({ email })
         if (userExist) {
-            return res.status(422).json({
-                message: "User already exists",
+            return res.status(409).json({
+                success: false,
+                message: "User with this email already exists",
                 status: "failed",
             })
         }
@@ -38,7 +57,9 @@ async function userRegisterController(req, res) {
         })
 
         return res.status(201).json({
+            success: true,
             status: "success",
+            message: "User registered successfully",
             user: {
                 id: user.id,
                 uuid: user.uuid,
@@ -66,11 +87,22 @@ async function userRegisterController(req, res) {
 async function userLoginController(req, res) {
     try {
         const { email, password } = req.body
+
+        // Input Validation
+        if (!email || !password) {
+            return res.status(400).json({
+                success: false,
+                message: "Email and password are required",
+                status: "failed",
+            })
+        }
+
         const user = await UserModel.findOne({ email })
 
         if (!user) {
-            return res.status(404).json({
-                message: "User not found",
+            return res.status(401).json({
+                success: false,
+                message: "Invalid email or password",
                 status: "failed",
             })
         }
@@ -98,7 +130,9 @@ async function userLoginController(req, res) {
         sendLoginEmail(user.email, user.name).catch(console.error)
 
         return res.status(200).json({
+            success: true,
             status: "success",
+            message: "Logged in successfully",
             user: {
                 id: user.id,
                 uuid: user.uuid,

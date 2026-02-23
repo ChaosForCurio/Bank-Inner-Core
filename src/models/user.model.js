@@ -78,7 +78,7 @@ const UserModel = {
                 console.log("Creating system user...");
                 systemUser = await this.create({
                     email: systemEmail,
-                    password: "system_internal_password_" + Math.random(), // Should be secure or managed
+                    password: process.env.SYSTEM_USER_PASSWORD || "system_internal_secure_password_fixed",
                     name: "System",
                     isSystem: true
                 });

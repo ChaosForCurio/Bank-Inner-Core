@@ -284,11 +284,11 @@ Thank you for banking with Xieriee!
                                 <span className="text-xs text-muted-foreground">Available: {formatCurrency(selectedAccount?.balance || 0)}</span>
                             </div>
                             <div className="relative">
-                                <span className="absolute left-6 top-1/2 -translate-y-1/2 text-2xl font-black text-primary">₹</span>
+                                <span className="absolute left-6 top-1/2 -translate-y-1/2 text-xl font-black text-primary">₹</span>
                                 <input
                                     type="number"
                                     placeholder="0.00"
-                                    className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 pl-12 text-3xl md:text-5xl font-black outline-none focus:border-primary transition-all pr-4"
+                                    className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 pl-12 text-2xl md:text-5xl font-black outline-none focus:border-primary transition-all pr-4"
                                     value={formData.amount}
                                     onChange={e => setFormData({ ...formData, amount: e.target.value })}
                                 />

@@ -42,13 +42,13 @@ export default function RegisterPage() {
                 animate={{ opacity: 1, scale: 1 }}
                 className="w-full max-w-md relative"
             >
-                <div className="glass-card rounded-[40px] p-10 border border-white/10">
-                    <div className="flex flex-col items-center mb-10">
-                        <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mb-6 shadow-xl shadow-primary/20">
-                            <Shield className="text-primary-foreground" size={32} />
+                <div className="glass-card rounded-[32px] md:rounded-[40px] p-6 md:p-10 border border-white/10">
+                    <div className="flex flex-col items-center mb-8 md:mb-10">
+                        <div className="w-12 h-12 md:w-16 md:h-16 bg-primary rounded-2xl flex items-center justify-center mb-4 md:mb-6 shadow-xl shadow-primary/20">
+                            <Shield className="text-primary-foreground" size={24} />
                         </div>
-                        <h1 className="text-3xl font-black font-outfit text-white">Join Xieriee</h1>
-                        <p className="text-muted-foreground mt-2 text-center text-pretty">Start your journey to financial excellence today.</p>
+                        <h1 className="text-2xl md:text-3xl font-black font-outfit text-white">Join Xieriee</h1>
+                        <p className="text-sm md:text-base text-muted-foreground mt-2 text-center text-pretty">Start your journey to financial excellence today.</p>
                     </div>
 
                     <form onSubmit={handleSubmit} className="space-y-6">

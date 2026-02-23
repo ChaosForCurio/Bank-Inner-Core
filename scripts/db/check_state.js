@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { sql } = require('./src/db');
+const { sql } = require('../../src/db');
 
 async function main() {
     try {

@@ -86,11 +86,11 @@ export default function Dashboard({ user: initialUser }: { user?: any }) {
                         <CreditCard size={200} />
                     </div>
 
-                    <div className="relative h-full p-10 flex flex-col justify-between text-primary-foreground">
+                    <div className="relative h-full p-6 md:p-10 flex flex-col justify-between text-primary-foreground">
                         <div className="flex justify-between items-start mb-8 md:mb-0">
                             <div>
                                 <p className="text-sm font-medium opacity-80 mb-1">Total Balance</p>
-                                <h2 className="text-4xl md:text-5xl font-black font-outfit break-all">{formatCurrency(balance)}</h2>
+                                <h2 className="text-3xl md:text-5xl font-black font-outfit break-all">{formatCurrency(balance)}</h2>
                             </div>
                             <div className="hidden sm:flex w-14 h-10 bg-white/20 backdrop-blur-md rounded-xl items-center justify-center border border-white/30">
                                 <span className="font-black text-xs">XIERIEE</span>

@@ -21,6 +21,11 @@ const allowedOrigins = [
 
 app.use(cors({
     origin: function (origin, callback) {
+        // Allow all origins in development to facilitate testing on mobile devices/local network
+        if (process.env.NODE_ENV !== "production") {
+            return callback(null, true);
+        }
+
         if (!origin || allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
