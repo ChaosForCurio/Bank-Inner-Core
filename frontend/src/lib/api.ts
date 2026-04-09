@@ -40,7 +40,7 @@ api.interceptors.response.use(
     (error: AxiosError) => {
         // Handle Network Errors (no response from server)
         if (!error.response) {
-            console.error("Network Error: Backend might be down.", error.message);
+            console.warn("Network Error: Backend might be down.", error.message);
             // We can return a custom error message or structure
             const networkError = {
                 message: "Server is unreachable. Please check if the backend is running.",

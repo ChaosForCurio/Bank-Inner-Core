@@ -47,7 +47,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 const response = await api.get(endpoints.auth.me)
                 setUser(response.data)
             } catch (error) {
-                console.error("Auth error:", error)
+                console.warn("Auth check failed, redirecting to login...")
+                deleteCookie("token")
                 router.push("/login")
             } finally {
                 setLoading(false)
@@ -59,14 +60,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const handleLogout = async () => {
         try {
             await api.post(endpoints.auth.logout)
-        } catch (error) {
-            console.error("Logout error:", error)
+        } catch (error: any) {
+            console.error("Logout error:", error?.message || "Unknown error")
         }
         deleteCookie("token")
         router.push("/")
     }
 
-    if (loading) {
+    // Only render dashboard if loading is complete and user exists
+    if (loading || !user) {
         return (
             <div className="fixed inset-0 bg-[#0a0f18] z-[100] flex flex-col items-center justify-center">
                 <motion.div
@@ -80,7 +82,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     </div>
                 </motion.div>
                 <p className="mt-8 text-muted-foreground/50 text-xs font-black uppercase tracking-[0.3em] font-outfit animate-pulse">
-                    Initializing Core
+                    {loading ? "Initializing Core" : "Redirecting to Login"}
                 </p>
             </div>
         )

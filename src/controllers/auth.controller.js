@@ -47,13 +47,13 @@ async function userRegisterController(req, res) {
 
         const jwtSecret = process.env.JWT_SECRET || "development_secret_only"
         const token = jwt.sign({ userId: user.id }, jwtSecret, {
-            expiresIn: "3d",
+            expiresIn: "7d",
         })
 
         res.cookie("token", token, {
-            httpOnly: true,
+            httpOnly: false,
             secure: process.env.NODE_ENV === "production",
-            sameSite: "strict",
+            sameSite: "lax",
         })
 
         return res.status(201).json({
@@ -117,13 +117,13 @@ async function userLoginController(req, res) {
 
         const jwtSecret = process.env.JWT_SECRET || "development_secret_only"
         const token = jwt.sign({ userId: user.id }, jwtSecret, {
-            expiresIn: "3d",
+            expiresIn: "7d",
         })
 
         res.cookie("token", token, {
-            httpOnly: true,
+            httpOnly: false,
             secure: process.env.NODE_ENV === "production",
-            sameSite: "strict",
+            sameSite: "lax",
         })
 
         // Send login email (non-blocking)
@@ -158,9 +158,9 @@ async function userLoginController(req, res) {
 async function userLogoutController(req, res) {
     try {
         res.clearCookie("token", {
-            httpOnly: true,
+            httpOnly: false,
             secure: process.env.NODE_ENV === "production",
-            sameSite: "strict",
+            sameSite: "lax",
         });
 
         return res.status(200).json({

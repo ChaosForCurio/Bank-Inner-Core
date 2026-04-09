@@ -33,8 +33,8 @@ export default function TransferPage({ user }: { user?: any }) {
                 if (accountsData.length > 0) {
                     setSelectedAccount(accountsData[0])
                 }
-            } catch (error) {
-                console.error("Failed to fetch accounts:", error)
+            } catch (error: any) {
+                console.warn("Failed to fetch accounts:", error?.message || "Unknown error")
                 toast.error("Could not load accounts")
             } finally {
                 setAccountsLoading(false)
@@ -157,8 +157,8 @@ Thank you for banking with Xieriee!
             window.URL.revokeObjectURL(url)
 
             toast.success("Receipt downloaded")
-        } catch (error) {
-            console.error("Failed to download receipt:", error)
+        } catch (error: any) {
+            console.warn("Failed to download receipt:", error?.message || "Unknown error")
             toast.error("Could not generate receipt")
         }
     }

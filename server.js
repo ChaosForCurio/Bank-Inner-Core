@@ -1,5 +1,9 @@
 require("dotenv").config()
 
+const dns = require("dns")
+// Force IPv4 resolution to prevent connection timeouts with cloud databases in Node 17+
+dns.setDefaultResultOrder('ipv4first')
+
 const { verifyConnection } = require("./src/db")
 const app = require("./src/app")
 

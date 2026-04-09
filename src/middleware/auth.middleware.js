@@ -25,7 +25,11 @@ async function authMiddleware(req, res, next) {
         req.user = user
         return next()
     } catch (error) {
-        console.error("Auth error:", error);
+        if (error.name === "TokenExpiredError") {
+            console.warn(`Auth error: Token expired at ${error.expiredAt}`);
+        } else {
+            console.error("Auth error:", error);
+        }
         return res.status(401).json({
             message: "Unauthorized Access Token is Invalid",
             status: "failed",
@@ -57,7 +61,11 @@ async function authSystemUserMiddleware(req, res, next) {
         req.user = user
         return next()
     } catch (error) {
-        console.error("System Auth error:", error);
+        if (error.name === "TokenExpiredError") {
+            console.warn(`System Auth error: Token expired at ${error.expiredAt}`);
+        } else {
+            console.error("System Auth error:", error);
+        }
         return res.status(401).json({
             message: "Unauthorized Access Token is Invalid",
             status: "failed",

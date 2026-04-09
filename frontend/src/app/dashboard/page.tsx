@@ -31,8 +31,8 @@ export default function Dashboard({ user: initialUser }: { user?: any }) {
                 ])
                 setAccounts(accountsRes.data.accounts || [])
                 setTransactions((historyRes.data.transactions || []).slice(0, 5)) // Get recent 5
-            } catch (error) {
-                console.error("Dashboard data fetch error:", error)
+            } catch (error: any) {
+                console.warn("Dashboard data fetch error:", error?.message || "Unknown error")
             } finally {
                 setLoading(false)
             }
