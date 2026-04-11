@@ -35,31 +35,25 @@ api.interceptors.request.use((config) => {
     return config;
 });
 
+import { handleApiError } from "./error-handler";
+
 api.interceptors.response.use(
     (response) => response,
     (error: AxiosError) => {
-        // Handle Network Errors (no response from server)
-        if (!error.response) {
-            console.warn("Network Error: Backend might be down.", error.message);
-            // We can return a custom error message or structure
-            const networkError = {
-                message: "Server is unreachable. Please check if the backend is running.",
-                isNetworkError: true
-            };
-            return Promise.reject(networkError);
-        }
+        const appError = handleApiError(error);
 
-        if (error.response?.status === 401) {
+        if (appError.status === 401) {
             // Check if we already have a token, if so, it's probably expired
-            const token = typeof window !== 'undefined' ? document.cookie.includes('token=') : false;
-            if (token) {
+            const hasToken = typeof window !== 'undefined' ? document.cookie.includes('token=') : false;
+            if (hasToken) {
                 console.warn("Session expired (401), clearing local state...");
                 if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
                     window.location.href = '/login';
                 }
             }
         }
-        return Promise.reject(error);
+        
+        return Promise.reject(appError);
     }
 );
 

@@ -14,22 +14,37 @@ export const metadata: Metadata = {
   },
 };
 
+import { ErrorBoundary } from "@/components/ui/error-boundary";
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
-      <body className={`${inter.variable} ${outfit.variable} font-sans`}>
-        {children}
+    <html lang="en" className="dark scroll-smooth">
+      <body className={`${inter.variable} ${outfit.variable} font-sans bg-[#0a0a0a] text-white selection:bg-white selection:text-black`}>
+        <ErrorBoundary>
+          {children}
+        </ErrorBoundary>
         <Toaster
           position="bottom-right"
           toastOptions={{
+            duration: 4000,
             style: {
-              background: '#1e293b',
+              background: 'rgba(22, 22, 22, 0.8)',
+              backdropFilter: 'blur(12px)',
               color: '#fff',
               border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: '12px',
+              fontSize: '14px',
+              padding: '12px 16px',
+            },
+            success: {
+              iconTheme: {
+                primary: '#fff',
+                secondary: '#000',
+              },
             },
           }}
         />

@@ -20,7 +20,16 @@ export default function RegisterPage() {
             toast.success("Account created! Please sign in.")
             router.push("/login")
         } catch (error: any) {
-            toast.error(error.response?.data?.message || "Registration failed")
+            // Handle new error response structure which might include Zod validation errors
+            const errorData = error.response?.data
+            if (errorData?.errors) {
+                // Display the first validation error if present
+                const firstError = Object.values(errorData.errors)[0] as any
+                const message = Array.isArray(firstError?._errors) ? firstError._errors[0] : "Validation failed"
+                toast.error(message)
+            } else {
+                toast.error(errorData?.message || "Registration failed")
+            }
         } finally {
             setLoading(false)
         }
@@ -89,13 +98,14 @@ export default function RegisterPage() {
                                 <input
                                     required
                                     type="password"
-                                    minLength={6}
+                                    minLength={8}
                                     className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-4 outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
                                     placeholder="••••••••"
                                     value={formData.password}
                                     onChange={e => setFormData({ ...formData, password: e.target.value })}
                                 />
                             </div>
+                            <p className="text-[10px] text-muted-foreground ml-1">Min. 8 chars, 1 uppercase, 1 number required.</p>
                         </div>
 
                         <button

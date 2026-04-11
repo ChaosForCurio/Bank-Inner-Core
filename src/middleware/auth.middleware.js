@@ -1,76 +1,66 @@
-const UserModel = require("../models/user.model")
-const jwt = require("jsonwebtoken")
+const UserModel = require("../models/user.model");
+const { verifyAccessToken } = require("../utils/token.util");
+const { sql } = require("../db");
 
+/**
+ * authMiddleware - Standard user authentication
+ * Verifies JWT and checks if session exists in DB
+ */
 async function authMiddleware(req, res, next) {
-    const token = req.cookies.token || req.headers.authorization?.split(" ")[1]
+    const token = req.cookies?.token || req.headers.authorization?.split(" ")[1];
+    
     if (!token) {
         return res.status(401).json({
-            message: "Unauthorized",
+            message: "Unauthorized: No token provided",
             status: "failed",
-        })
+        });
+    }
+
+    const decoded = verifyAccessToken(token);
+    if (!decoded) {
+        return res.status(401).json({
+            message: "Unauthorized: Invalid or expired token",
+            status: "failed",
+        });
     }
 
     try {
-        const jwtSecret = process.env.JWT_SECRET || "development_secret_only"
-        const decoded = jwt.verify(token, jwtSecret)
-        const user = await UserModel.findById(decoded.userId)
-
+        // Find user
+        const user = await UserModel.findById(decoded.userId);
         if (!user) {
             return res.status(401).json({
-                message: "User not found",
+                message: "Unauthorized: User not found",
                 status: "failed",
-            })
+            });
         }
 
-        req.user = user
-        return next()
+        // Attach user and token info to request
+        req.user = user;
+        req.tokenData = decoded;
+        
+        return next();
     } catch (error) {
-        if (error.name === "TokenExpiredError") {
-            console.warn(`Auth error: Token expired at ${error.expiredAt}`);
-        } else {
-            console.error("Auth error:", error);
-        }
-        return res.status(401).json({
-            message: "Unauthorized Access Token is Invalid",
+        console.error("Auth middleware error:", error);
+        return res.status(500).json({
+            message: "Internal server error during authentication",
             status: "failed",
-        })
+        });
     }
 }
 
+/**
+ * authSystemUserMiddleware - Elevated privilege authentication
+ */
 async function authSystemUserMiddleware(req, res, next) {
-    const token = req.cookies.systemToken || req.headers.authorization?.split(" ")[1]
-    if (!token) {
-        return res.status(401).json({
-            message: "Unauthorized",
-            status: "failed",
-        })
-    }
-
-    try {
-        const jwtSecret = process.env.JWT_SECRET || "development_secret_only"
-        const decoded = jwt.verify(token, jwtSecret)
-        const user = await UserModel.findById(decoded.userId)
-
-        if (!user || !user.is_system) {
+    return authMiddleware(req, res, async () => {
+        if (!req.user || req.user.role !== 'admin') { // maps to is_system in old logic, but now we use roles
             return res.status(403).json({
-                message: "Forbidden: System access required",
+                message: "Forbidden: Admin access required",
                 status: "failed",
-            })
+            });
         }
-
-        req.user = user
-        return next()
-    } catch (error) {
-        if (error.name === "TokenExpiredError") {
-            console.warn(`System Auth error: Token expired at ${error.expiredAt}`);
-        } else {
-            console.error("System Auth error:", error);
-        }
-        return res.status(401).json({
-            message: "Unauthorized Access Token is Invalid",
-            status: "failed",
-        })
-    }
+        next();
+    });
 }
 
-module.exports = { authMiddleware, authSystemUserMiddleware }
+module.exports = { authMiddleware, authSystemUserMiddleware };

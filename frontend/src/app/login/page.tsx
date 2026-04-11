@@ -18,11 +18,14 @@ export default function LoginPage() {
         setLoading(true)
         try {
             const { data } = await api.post(endpoints.auth.login, formData)
-            setCookie("token", data.token, { maxAge: 60 * 60 * 24 * 7 }) // 1 week
+            // Use accessToken from the new response format
+            setCookie("token", data.accessToken, { maxAge: 60 * 60 * 24 * 7 }) // 1 week
             toast.success("Welcome back!")
             router.push("/dashboard")
         } catch (error: any) {
-            toast.error(error.response?.data?.message || "Login failed")
+            // Handle new error response structure
+            const message = error.response?.data?.message || "Login failed"
+            toast.error(message)
         } finally {
             setLoading(false)
         }
