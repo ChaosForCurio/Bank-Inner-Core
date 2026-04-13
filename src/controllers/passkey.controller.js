@@ -1,6 +1,7 @@
 const PasskeyModel = require("../models/passkey.model");
 const UserModel = require("../models/user.model");
 const AuditModel = require("../models/audit.model");
+const { generateResetToken } = require("../utils/token.util");
 
 // RP (Relying Party) settings
 const rpName = "Xieriee Bank";
@@ -29,7 +30,7 @@ const PasskeyController = {
             const options = await generateRegistrationOptions({
                 rpName,
                 rpID,
-                userID: user.id.toString(),
+                userID: new Uint8Array(Buffer.from(user.uuid || user.id.toString())),
                 userName: user.email,
                 userDisplayName: user.name,
                 attestationType: "none",
@@ -82,15 +83,16 @@ const PasskeyController = {
             const { verified, registrationInfo } = verification;
 
             if (verified && registrationInfo) {
-                const { credentialPublicKey, credentialID, counter } = registrationInfo;
+                const { credential } = registrationInfo;
+                const { publicKey, counter } = credential;
 
                 // Save passkey
                 await PasskeyModel.create({
                     userId: user.id,
                     credentialId: body.id, // The ID from browser
-                    publicKey: Buffer.from(credentialPublicKey),
+                    publicKey: Buffer.from(publicKey),
                     counter,
-                    transports: body.response.transports || [],
+                    transports: body.response.transports || credential.transports || [],
                     name: req.body.name || "Default Device"
                 });
 
@@ -164,7 +166,123 @@ const PasskeyController = {
             console.error("Error in deletePasskey:", error);
             res.status(500).json({ success: false, message: "Internal server error" });
         }
-    }
+    },
+
+    /**
+     * generateLoginOptions - Start the passkey authentication flow (for password reset)
+     */
+    async generateLoginOptions(req, res) {
+        try {
+            const { generateAuthenticationOptions } = await import("@simplewebauthn/server");
+
+            const { email } = req.body;
+            if (!email) {
+                return res.status(400).json({ success: false, message: "Email is required" });
+            }
+
+            // Find user — return generic message to prevent email enumeration
+            const user = await UserModel.findOne({ email });
+            if (!user) {
+                return res.status(404).json({ success: false, message: "No account with passkeys found for this email" });
+            }
+
+            const userPasskeys = await PasskeyModel.listActiveForUser(user.id);
+            if (userPasskeys.length === 0) {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: "No passkeys registered for this account. Please contact support to reset your password." 
+                });
+            }
+
+            const options = await generateAuthenticationOptions({
+                rpID,
+                userVerification: "preferred",
+                allowCredentials: userPasskeys.map(pk => ({
+                    id: pk.credential_id,
+                    type: "public-key",
+                    transports: pk.transports,
+                })),
+            });
+
+            // Store challenge
+            await UserModel.updateSecurityInfo(user.id, {
+                webauthn_challenge: options.challenge
+            });
+
+            res.json({ ...options, userId: user.id, userName: user.name });
+        } catch (error) {
+            console.error("Error in generateLoginOptions:", error);
+            res.status(500).json({ success: false, message: "Internal server error" });
+        }
+    },
+
+    /**
+     * verifyLogin - Verify passkey authentication and return a short-lived reset token
+     */
+    async verifyLogin(req, res) {
+        try {
+            const { verifyAuthenticationResponse } = await import("@simplewebauthn/server");
+            const { body } = req;
+
+            const { email, userId: bodyUserId } = body;
+            if (!email) {
+                return res.status(400).json({ success: false, message: "Email is required" });
+            }
+
+            const user = await UserModel.findOne({ email });
+            if (!user || !user.webauthn_challenge) {
+                return res.status(400).json({ success: false, message: "Invalid authentication session" });
+            }
+
+            const credentialId = body.id;
+            const passkey = await PasskeyModel.findByCredentialId(credentialId);
+            if (!passkey || passkey.user_id !== user.id) {
+                return res.status(400).json({ success: false, message: "Passkey not found for this account" });
+            }
+
+            const verification = await verifyAuthenticationResponse({
+                response: body,
+                expectedChallenge: user.webauthn_challenge,
+                expectedOrigin: origin,
+                expectedRPID: rpID,
+                credential: {
+                    id: passkey.credential_id,
+                    publicKey: passkey.public_key,
+                    counter: passkey.counter,
+                    transports: passkey.transports,
+                },
+            });
+
+            const { verified, authenticationInfo } = verification;
+
+            if (!verified) {
+                return res.status(400).json({ success: false, message: "Passkey verification failed" });
+            }
+
+            // Update counter to prevent replay attacks
+            await PasskeyModel.updateCounter(credentialId, authenticationInfo.newCounter);
+
+            // Clear challenge
+            await UserModel.updateSecurityInfo(user.id, { webauthn_challenge: null });
+
+            // Generate a short-lived reset token (10 min)
+            const resetToken = generateResetToken(user.id);
+
+            await AuditModel.create({
+                user_id: user.id,
+                action: "PASSKEY_AUTH_FOR_RESET",
+                status: "success",
+                ip_address: req.ip,
+                user_agent: req.headers["user-agent"],
+            });
+
+            res.json({ success: true, resetToken });
+        } catch (error) {
+            console.error("Error in verifyLogin:", error);
+            res.status(500).json({ success: false, message: "Internal server error" });
+        }
+    },
+
 };
 
 module.exports = PasskeyController;

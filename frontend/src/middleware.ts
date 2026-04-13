@@ -5,8 +5,9 @@ export function middleware(request: NextRequest) {
     const token = request.cookies.get('token')?.value
     const { pathname } = request.nextUrl
 
-    // Redirect to dashboard if logged in and trying to access auth pages
-    if (token && (pathname === '/login' || pathname === '/register' || pathname === '/')) {
+    // Auth pages: redirect to dashboard if already logged in
+    const authPages = ['/login', '/register', '/']
+    if (token && authPages.includes(pathname)) {
         return NextResponse.redirect(new URL('/dashboard', request.url))
     }
 
@@ -19,5 +20,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-    matcher: ['/', '/login', '/register', '/dashboard/:path*'],
+    matcher: ['/', '/login', '/register', '/dashboard/:path*', '/forgot-password', '/reset-password'],
 }

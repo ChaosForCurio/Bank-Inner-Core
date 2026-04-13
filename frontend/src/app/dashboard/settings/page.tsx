@@ -50,7 +50,7 @@ export default function SettingsPage() {
             const options = optionsRes.data
 
             // 2. Trigger browser registration
-            const attestationResponse = await startRegistration(options)
+            const attestationResponse = await startRegistration({ optionsJSON: options })
 
             // 3. Verify with backend
             const nickname = prompt("Give this passkey a name (e.g. MacBook Pro, iPhone):") || "Default Device"
@@ -62,8 +62,9 @@ export default function SettingsPage() {
             toast.success("Passkey registered successfully!")
             fetchPasskeys()
         } catch (error: any) {
-            console.error("Passkey registration failed:", error)
-            toast.error(error.message || "Passkey registration failed")
+            const errLog = error.response?.data || error.message || error;
+            console.error("Passkey registration failed:", errLog)
+            toast.error(error.response?.data?.message || error.message || "Passkey registration failed")
         } finally {
             setRegistering(false)
         }
@@ -87,8 +88,8 @@ export default function SettingsPage() {
             items: [
                 { label: "Change Password", description: "Use at least 12 characters and special symbols", icon: Lock },
                 { 
-                    label: "Passkeys", 
-                    description: "Use biometric login for maximum security", 
+                    label: "Windows Hello Passkeys", 
+                    description: "Use Windows Hello for maximum security", 
                     icon: Fingerprint,
                     onClick: () => setIsPasskeyModalOpen(true)
                 },
@@ -191,8 +192,8 @@ export default function SettingsPage() {
                             <div className="p-8 space-y-8">
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <h3 className="text-2xl font-black font-outfit italic tracking-tight">Passkeys</h3>
-                                        <p className="text-sm text-muted-foreground mt-1">Manage your biometric credentials.</p>
+                                        <h3 className="text-2xl font-black font-outfit italic tracking-tight">Windows Hello</h3>
+                                        <p className="text-sm text-muted-foreground mt-1">Manage your Windows Hello credentials.</p>
                                     </div>
                                     <button 
                                         onClick={handleRegisterPasskey}
@@ -231,7 +232,7 @@ export default function SettingsPage() {
                                     ) : (
                                         <div className="p-8 text-center border border-dashed border-white/10 rounded-3xl">
                                             <Fingerprint className="mx-auto text-muted-foreground mb-3 opacity-20" size={48} />
-                                            <p className="text-sm text-muted-foreground">No passkeys registered yet.</p>
+                                            <p className="text-sm text-muted-foreground">No Windows Hello credentials registered yet.</p>
                                         </div>
                                     )}
                                 </div>

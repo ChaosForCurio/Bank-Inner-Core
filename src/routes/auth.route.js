@@ -11,6 +11,13 @@ router.post("/register", authRateLimiter, authController.userRegisterController)
 router.post("/login", authRateLimiter, authController.userLoginController);
 router.post("/refresh", authController.refreshTokenController);
 
+// Passkey authentication (Public)
+router.post("/passkeys/login/options", authRateLimiter, passkeyController.generateLoginOptions);
+router.post("/passkeys/login/verify", authRateLimiter, passkeyController.verifyLogin);
+
+// Password reset
+router.post("/reset-password", authRateLimiter, authController.resetPasswordController);
+
 // Protected routes
 router.post("/logout", authMiddleware, authController.userLogoutController);
 router.post("/logout-all", authMiddleware, authController.logoutAllController);

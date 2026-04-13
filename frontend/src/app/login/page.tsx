@@ -18,8 +18,8 @@ export default function LoginPage() {
         setLoading(true)
         try {
             const { data } = await api.post(endpoints.auth.login, formData)
-            // Use accessToken from the new response format
-            setCookie("token", data.accessToken, { maxAge: 60 * 60 * 24 * 7 }) // 1 week
+            // Persist token for 7 days so the user stays logged in across browser restarts
+            setCookie("token", data.accessToken, { maxAge: 60 * 60 * 24 * 7 })
             toast.success("Welcome back!")
             router.push("/dashboard")
         } catch (error: any) {
@@ -75,7 +75,7 @@ export default function LoginPage() {
                         <div className="space-y-2">
                             <div className="flex justify-between items-center ml-1">
                                 <label className="text-sm font-bold text-muted-foreground">Password</label>
-                                <Link href="#" className="text-xs text-primary hover:underline">Forgot Password?</Link>
+                            <Link href="/forgot-password" className="text-xs text-primary hover:underline">Forgot Password?</Link>
                             </div>
                             <div className="relative group">
                                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors" size={20} />

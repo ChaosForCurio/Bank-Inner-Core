@@ -19,7 +19,6 @@ const getBaseUrl = () => {
 };
 
 const API_BASE_URL = getBaseUrl().replace(/\/?$/, '/');
-console.log("Resolved API_BASE_URL:", API_BASE_URL);
 
 
 export const api = axios.create({
@@ -35,24 +34,73 @@ api.interceptors.request.use((config) => {
     return config;
 });
 
+// Routes that should NEVER trigger a silent token refresh (they are auth routes themselves)
+const AUTH_ROUTES = ["auth/login", "auth/register", "auth/refresh", "auth/reset-password", "auth/passkeys/login"];
+
+let isRefreshing = false;
+let refreshQueue: Array<(token: string | null) => void> = [];
+
+const processRefreshQueue = (token: string | null) => {
+    refreshQueue.forEach(cb => cb(token));
+    refreshQueue = [];
+};
+
 import { handleApiError } from "./error-handler";
 
 api.interceptors.response.use(
     (response) => response,
-    (error: AxiosError) => {
-        const appError = handleApiError(error);
+    async (error: AxiosError) => {
+        const originalRequest = error.config as any;
+        const requestUrl: string = originalRequest?.url ?? "";
 
-        if (appError.status === 401) {
-            // Check if we already have a token, if so, it's probably expired
-            const hasToken = typeof window !== 'undefined' ? document.cookie.includes('token=') : false;
-            if (hasToken) {
-                console.warn("Session expired (401), clearing local state...");
-                if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
-                    window.location.href = '/login';
+        // Skip silent refresh for auth endpoints — they handle their own failures
+        const isAuthRoute = AUTH_ROUTES.some(r => requestUrl.includes(r));
+
+        // Only attempt silent refresh on 401 from protected routes (not auth routes themselves)
+        if (error.response?.status === 401 && !originalRequest._retry && !isAuthRoute) {
+            if (isRefreshing) {
+                // Queue concurrent requests until refresh completes
+                return new Promise((resolve, reject) => {
+                    refreshQueue.push((token) => {
+                        if (token) {
+                            originalRequest.headers.Authorization = `Bearer ${token}`;
+                            resolve(api(originalRequest));
+                        } else {
+                            reject(error);
+                        }
+                    });
+                });
+            }
+
+            originalRequest._retry = true;
+            isRefreshing = true;
+
+            try {
+                // Silently get new access token via the httpOnly refreshToken cookie
+                const refreshRes = await api.post("auth/refresh");
+                const newToken: string = refreshRes.data.accessToken;
+
+                // Persist as 7-day cookie so it survives browser restarts
+                const { setCookie } = await import("cookies-next");
+                setCookie("token", newToken, { maxAge: 60 * 60 * 24 * 7 });
+
+                // Retry original request with fresh token
+                originalRequest.headers.Authorization = `Bearer ${newToken}`;
+                processRefreshQueue(newToken);
+                return api(originalRequest);
+            } catch (refreshError) {
+                processRefreshQueue(null);
+                // Session fully expired — redirect to login
+                if (typeof window !== "undefined" && !window.location.pathname.includes("/login")) {
+                    window.location.href = "/login";
                 }
+                return Promise.reject(refreshError);
+            } finally {
+                isRefreshing = false;
             }
         }
-        
+
+        const appError = handleApiError(error);
         return Promise.reject(appError);
     }
 );
@@ -63,6 +111,12 @@ export const endpoints = {
         register: "auth/register",
         logout: "auth/logout",
         me: "auth/me",
+        refresh: "auth/refresh",
+        forgotPassword: {
+            options: "auth/passkeys/login/options",
+            verify: "auth/passkeys/login/verify",
+        },
+        resetPassword: "auth/reset-password",
     },
     accounts: {
         list: "account",

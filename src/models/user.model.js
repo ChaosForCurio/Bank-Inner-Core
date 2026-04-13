@@ -178,52 +178,6 @@ const UserModel = {
         return await bcrypt.compare(candidatePassword, hashedPassword);
     },
 
-    /**
-     * findById - Find user by primary key
-     */
-    async findById(id) {
-        try {
-            const result = await sql`
-                SELECT * FROM users WHERE id = ${id} LIMIT 1
-            `;
-            return result[0];
-        } catch (error) {
-            console.error("Error in UserModel.findById:", error);
-            throw error;
-        }
-    },
-
-    /**
-     * updateSecurityInfo - Update security-related fields for a user
-     */
-    async updateSecurityInfo(userId, updates) {
-        try {
-            // Filter out fields that doesn't exist to prevent errors (basic check)
-            const allowedFields = [
-                'failed_login_attempts', 
-                'lockout_until', 
-                'last_login', 
-                'mfa_enabled', 
-                'mfa_secret', 
-                'webauthn_challenge'
-            ];
-            
-            const sets = Object.entries(updates)
-                .filter(([key]) => allowedFields.includes(key))
-                .map(([key, value]) => sql`${sql(key)} = ${value}`);
-
-            if (sets.length === 0) return;
-
-            await sql`
-                UPDATE users 
-                SET ${sql(sets)}
-                WHERE id = ${userId}
-            `;
-        } catch (error) {
-            console.error("Error in updateSecurityInfo:", error);
-            throw error;
-        }
-    }
 };
 
 module.exports = UserModel;

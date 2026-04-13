@@ -2,6 +2,7 @@ const jwt = require("jsonwebtoken");
 
 const ACCESS_TOKEN_SECRET = process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET || "access_secret_123";
 const REFRESH_TOKEN_SECRET = process.env.JWT_REFRESH_SECRET || "refresh_secret_123";
+const RESET_TOKEN_SECRET = process.env.JWT_RESET_SECRET || "reset_secret_456";
 
 /**
  * generateAccessToken - Create a short-lived access token
@@ -54,9 +55,35 @@ const verifyRefreshToken = (token) => {
     }
 };
 
+/**
+ * generateResetToken - Create a short-lived token for password reset after passkey auth
+ */
+const generateResetToken = (userId) => {
+    return jwt.sign(
+        { userId, purpose: "password_reset" },
+        RESET_TOKEN_SECRET,
+        { expiresIn: "10m" }
+    );
+};
+
+/**
+ * verifyResetToken - Validate a password reset token
+ */
+const verifyResetToken = (token) => {
+    try {
+        const decoded = jwt.verify(token, RESET_TOKEN_SECRET);
+        if (decoded.purpose !== "password_reset") return null;
+        return decoded;
+    } catch (error) {
+        return null;
+    }
+};
+
 module.exports = {
     generateAccessToken,
     generateRefreshToken,
     verifyAccessToken,
-    verifyRefreshToken
+    verifyRefreshToken,
+    generateResetToken,
+    verifyResetToken
 };

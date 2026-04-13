@@ -7,7 +7,7 @@ const AccountModel = require("../models/account.model");
 const SessionModel = require("../models/session.model");
 const AuditModel = require("../models/audit.model");
 const PasswordHistoryModel = require("../models/password_history.model");
-const { generateAccessToken, generateRefreshToken, verifyRefreshToken } = require("../utils/token.util");
+const { generateAccessToken, generateRefreshToken, verifyRefreshToken, verifyResetToken } = require("../utils/token.util");
 const { sendWelcomeEmail, sendLoginEmail } = require("../services/email.service");
 
 // Validation Schemas
@@ -253,10 +253,78 @@ async function logoutAllController(req, res) {
     }
 }
 
+/**
+ * resetPassword - Reset password using a valid passkey-issued reset token
+ */
+async function resetPasswordController(req, res) {
+    try {
+        const { resetToken, newPassword } = req.body;
+
+        if (!resetToken || !newPassword) {
+            return res.status(400).json({ status: "failed", message: "Reset token and new password are required" });
+        }
+
+        // Verify the reset token
+        const decoded = verifyResetToken(resetToken);
+        if (!decoded) {
+            return res.status(401).json({ status: "failed", message: "Invalid or expired reset token" });
+        }
+
+        const user = await UserModel.findById(decoded.userId);
+        if (!user) {
+            return res.status(404).json({ status: "failed", message: "User not found" });
+        }
+
+        // Password strength check
+        const strength = zxcvbn(newPassword);
+        if (strength.score < 3) {
+            return res.status(400).json({
+                status: "failed",
+                message: "Password is too weak. Please use a stronger password.",
+                feedback: strength.feedback.suggestions
+            });
+        }
+
+        // Check password history
+        const isReused = await PasswordHistoryModel.isPasswordReused(user.id, newPassword);
+        if (isReused) {
+            return res.status(400).json({
+                status: "failed",
+                message: "You cannot reuse a recent password. Please choose a different password."
+            });
+        }
+
+        // Hash and update the password
+        const bcrypt = require("bcryptjs");
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        await sql`UPDATE users SET password = ${hashedPassword} WHERE id = ${user.id}`;
+
+        // Add to password history
+        await PasswordHistoryModel.add(user.id, hashedPassword);
+
+        // Audit log
+        await AuditModel.create({
+            userId: user.id,
+            action: "password_reset",
+            status: "success",
+            ipAddress: req.ip,
+            userAgent: req.headers["user-agent"],
+            metadata: { method: "passkey" }
+        });
+
+        return res.status(200).json({ status: "success", message: "Password reset successfully. You can now log in with your new password." });
+
+    } catch (error) {
+        console.error("Reset Password Controller Error:", error);
+        return res.status(500).json({ status: "failed", message: "Password reset failed due to server error" });
+    }
+}
+
 module.exports = { 
     userRegisterController, 
     userLoginController, 
     userLogoutController,
     refreshTokenController,
-    logoutAllController
+    logoutAllController,
+    resetPasswordController
 };
