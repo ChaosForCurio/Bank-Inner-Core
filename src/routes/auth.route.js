@@ -35,7 +35,9 @@ router.get("/me", authMiddleware, (req, res) => {
         email: req.user.email,
         name: req.user.name,
         role: req.user.role,
-        is_system: req.user.role === 'admin'
+        is_system: req.user.role === 'admin',
+        mfa_enabled: !!req.user.mfa_enabled,
+        created_at: req.user.created_at
     });
 });
 

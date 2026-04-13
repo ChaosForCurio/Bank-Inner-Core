@@ -30,7 +30,7 @@ export const GlassCard = React.forwardRef<HTMLDivElement, GlassCardProps>(
         )}
         
         <div className="relative z-10">
-          {children}
+          {children as any}
         </div>
       </motion.div>
     );

@@ -49,60 +49,15 @@ async function createTransaction(req, res) {
             return res.status(400).json({ message: "Insufficient balance" });
         }
 
-        // Sequential SQL calls (Neon Serverless HTTP driver pattern)
-        // A. Create transaction record
-        const transaction = await TransactionModel.create({
-            fromAccount, toAccount: targetAccountId, amount, type, idempotencyKey, status: 'pending'
-        });
-
-        // B. Update balances (ensure deduction from sender and increase for recipient)
-        const updatedFrom = await sql`
-            UPDATE accounts 
-            SET balance = balance - ${amount}, updated_at = CURRENT_TIMESTAMP
-            WHERE id = ${fromAccount} AND balance >= ${amount}
-            RETURNING balance
-        `;
-
-        if (updatedFrom.length === 0) {
-            await TransactionModel.updateStatus(transaction.id, 'failed');
-            return res.status(400).json({ message: "Insufficient balance at time of execution" });
-        }
-
-        const updatedTo = await sql`
-            UPDATE accounts 
-            SET balance = balance + ${amount}, updated_at = CURRENT_TIMESTAMP
-            WHERE id = ${targetAccountId}
-            RETURNING balance
-        `;
-
-        if (updatedTo.length === 0) {
-            // Rollback balance deduction if recipient update fails
-            await sql`UPDATE accounts SET balance = balance + ${amount} WHERE id = ${fromAccount}`;
-            await TransactionModel.updateStatus(transaction.id, 'failed');
-            return res.status(500).json({ message: "Recipient account update failed" });
-        }
-
-        // C. Create Ledger entries
-        await LedgerModel.create({
-            accountId: fromAccount,
-            transactionId: transaction.id,
+        const TransactionService = require("../services/transaction.service");
+        const transaction = await TransactionService.executeTransfer({
+            fromAccountId: fromAccount,
+            toAccountId: targetAccountId,
             amount,
-            type: "debit",
-            balance: updatedFrom[0].balance,
+            type: type || 'transfer',
+            idempotencyKey,
             description: `Transfer to account ${targetAccountId}`
         });
-
-        await LedgerModel.create({
-            accountId: targetAccountId,
-            transactionId: transaction.id,
-            amount,
-            type: "credit",
-            balance: updatedTo[0].balance,
-            description: `Transfer from account ${fromAccount}`
-        });
-
-        // D. Complete transaction
-        const finalTransaction = await TransactionModel.updateStatus(transaction.id, 'completed');
 
         // Notifications (non-blocking)
         emailService.sendTransactionEmail(req.user.email, req.user.name, req.user.id, {
@@ -112,7 +67,7 @@ async function createTransaction(req, res) {
         return res.status(201).json({
             message: "Transaction successful",
             status: "success",
-            data: finalTransaction
+            data: transaction
         });
 
     } catch (error) {
@@ -247,7 +202,8 @@ async function getTransactionHistory(req, res) {
                 t.type as transaction_type,
                 t.from_account,
                 t.to_account,
-                t.status as transaction_status
+                t.status as transaction_status,
+                t.idempotency_key as transaction_uuid
             FROM ledgers l
             JOIN transactions t ON l.transaction_id = t.id
             WHERE l.account_id = ANY(${accountIds})

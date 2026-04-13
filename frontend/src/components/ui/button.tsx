@@ -42,7 +42,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
           sizes[size],
           className
         )}
-        {...props}
+        {...(props as any)}
       >
         {isLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-inherit">

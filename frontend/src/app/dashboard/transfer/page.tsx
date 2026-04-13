@@ -13,7 +13,10 @@ import {
     Fingerprint,
     Info,
     Receipt,
-    Download
+    Download,
+    Calendar,
+    UserPlus,
+    Clock
 } from "lucide-react"
 import { formatCurrency, formatDate, debounce } from "@/lib/utils"
 import { api, endpoints } from "@/lib/api"
@@ -39,25 +42,33 @@ export default function TransferPage({ user }: { user?: any }) {
     const [transferType, setTransferType] = useState<"account" | "uuid">("account")
     const [recipientName, setRecipientName] = useState<string | null>(null)
     const [resolvingUuid, setResolvingUuid] = useState(false)
+    const [beneficiaries, setBeneficiaries] = useState<any[]>([])
+    const [selectedBeneficiaryId, setSelectedBeneficiaryId] = useState<string>("")
+    const [isScheduled, setIsScheduled] = useState(false)
+    const [scheduleDate, setScheduleDate] = useState("")
+    const [scheduleFrequency, setScheduleFrequency] = useState("once")
     const [recentResult, setRecentResult] = useState<any>(null)
-
     useEffect(() => {
-        const fetchAccounts = async () => {
+        const fetchInitialData = async () => {
             try {
-                const response = await api.get(endpoints.accounts.list)
-                const accountsData = response.data.accounts || []
+                const [accountsRes, beneficiariesRes] = await Promise.all([
+                    api.get(endpoints.accounts.list),
+                    api.get('beneficiaries')
+                ])
+                const accountsData = accountsRes.data.accounts || []
                 setAccounts(accountsData)
+                setBeneficiaries(beneficiariesRes.data.beneficiaries || [])
                 if (accountsData.length > 0) {
                     setSelectedAccount(accountsData[0])
                 }
             } catch (error: any) {
-                console.warn("Failed to fetch accounts:", error?.message || "Unknown error")
-                toast.error("Could not load accounts")
+                console.warn("Failed to fetch data:", error?.message || "Unknown error")
+                toast.error("Could not load accounts or beneficiaries")
             } finally {
                 setAccountsLoading(false)
             }
         }
-        fetchAccounts()
+        fetchInitialData()
     }, [])
 
     // Debounced lookup function
@@ -120,12 +131,33 @@ export default function TransferPage({ user }: { user?: any }) {
             toast.error("Insufficient balance")
             return
         }
+        if (isScheduled && !scheduleDate) {
+            toast.error("Please select a date for the scheduled transfer")
+            return
+        }
+
         setStep(2)
     }
 
     const handleTransfer = async () => {
         setLoading(true)
         try {
+            if (isScheduled) {
+                const payload = {
+                    fromAccount: selectedAccount.id,
+                    toAccount: transferType === "account" ? formData.toAccount : undefined,
+                    toUserUuid: transferType === "uuid" ? formData.toUserUuid : undefined,
+                    amount: parseFloat(formData.amount),
+                    scheduledFor: scheduleDate,
+                    frequency: scheduleFrequency
+                }
+                await api.post('scheduled-transfers', payload)
+                toast.success("Transfer scheduled successfully")
+                setStep(3)
+                setRecentResult({ status: 'scheduled' })
+                return
+            }
+
             const payload: any = {
                 fromAccount: selectedAccount.id,
                 amount: parseFloat(formData.amount),
@@ -295,6 +327,39 @@ Thank you for choosing Xieriee Secure Core.
                                         </button>
                                     </div>
 
+                                    {/* Beneficiary Dropdown */}
+                                    {beneficiaries.length > 0 && transferType === "account" && (
+                                        <div className="space-y-4">
+                                            <div className="flex items-center gap-2 px-1">
+                                                <UserPlus className="w-4 h-4 text-white/40" />
+                                                <span className="text-xs font-bold uppercase tracking-widest text-white/40">Saved Beneficiaries</span>
+                                            </div>
+                                            <div className="relative group">
+                                                <select
+                                                    className="w-full bg-white/[0.03] border border-white/10 rounded-2xl p-4 text-sm font-bold outline-none focus:border-white/20 transition-all appearance-none cursor-pointer"
+                                                    value={selectedBeneficiaryId}
+                                                    onChange={(e) => {
+                                                        const b = beneficiaries.find(ben => ben.id.toString() === e.target.value)
+                                                        if (b) {
+                                                            setFormData({ ...formData, toAccount: b.beneficiary_account_id, toUserUuid: "" })
+                                                            setSelectedBeneficiaryId(e.target.value)
+                                                        } else {
+                                                            setSelectedBeneficiaryId("")
+                                                        }
+                                                    }}
+                                                >
+                                                    <option value="" className="bg-[#121212]">Select a beneficiary...</option>
+                                                    {beneficiaries.map(b => (
+                                                        <option key={b.id} value={b.id} className="bg-[#121212]">
+                                                            {b.name} ({b.beneficiary_account_id})
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none" size={16} />
+                                            </div>
+                                        </div>
+                                    )}
+
                                     {transferType === "account" ? (
                                         <div className="space-y-4">
                                             <div className="flex items-center justify-between px-1">
@@ -360,11 +425,72 @@ Thank you for choosing Xieriee Secure Core.
                                         <input
                                             type="number"
                                             placeholder="0.00"
-                                            className="w-full bg-white/[0.03] border border-white/10 rounded-[28px] p-8 pl-16 text-5xl font-black outline-none focus:border-white/20 transition-all tracking-tighter"
+                                            className="w-full bg-white/[0.03] border border-white/10 rounded-[28px] p-8 pl-18 text-5xl font-black outline-none focus:border-white/20 transition-all tracking-tighter"
                                             value={formData.amount}
                                             onChange={e => setFormData({ ...formData, amount: e.target.value })}
                                         />
                                     </div>
+                                </div>
+
+                                {/* Scheduling Section */}
+                                <div className="space-y-4 pt-4">
+                                    <div 
+                                        className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5 cursor-pointer hover:bg-white/10 transition-colors"
+                                        onClick={() => setIsScheduled(!isScheduled)}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <Calendar className={cn("w-5 h-5 transition-colors", isScheduled ? "text-primary" : "text-white/20")} />
+                                            <div>
+                                                <p className="text-sm font-bold">Schedule for later</p>
+                                                <p className="text-[10px] text-white/30 uppercase font-black tracking-widest">Post-dated or recurring</p>
+                                            </div>
+                                        </div>
+                                        <div className={cn(
+                                            "w-10 h-5 rounded-full relative transition-colors",
+                                            isScheduled ? "bg-primary" : "bg-white/10"
+                                        )}>
+                                            <motion.div 
+                                                animate={{ x: isScheduled ? 20 : 2 }}
+                                                className="absolute top-1 w-3 h-3 rounded-full bg-white shadow-sm"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <AnimatePresence>
+                                        {isScheduled && (
+                                            <motion.div
+                                                initial={{ height: 0, opacity: 0 }}
+                                                animate={{ height: "auto", opacity: 1 }}
+                                                exit={{ height: 0, opacity: 0 }}
+                                                className="space-y-4 overflow-hidden"
+                                            >
+                                                <div className="grid grid-cols-2 gap-4">
+                                                   <div className="space-y-2">
+                                                        <p className="text-[10px] font-bold uppercase tracking-widest text-white/40 ml-1">Execute On</p>
+                                                        <input 
+                                                            type="datetime-local" 
+                                                            className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-xs font-bold outline-none text-white custom-datetime-input"
+                                                            value={scheduleDate}
+                                                            onChange={(e) => setScheduleDate(e.target.value)}
+                                                        />
+                                                   </div>
+                                                   <div className="space-y-2">
+                                                        <p className="text-[10px] font-bold uppercase tracking-widest text-white/40 ml-1">Frequency</p>
+                                                        <select 
+                                                            className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-xs font-bold outline-none appearance-none cursor-pointer"
+                                                            value={scheduleFrequency}
+                                                            onChange={(e) => setScheduleFrequency(e.target.value)}
+                                                        >
+                                                            <option value="once" className="bg-[#121212]">Once only</option>
+                                                            <option value="daily" className="bg-[#121212]">Daily</option>
+                                                            <option value="weekly" className="bg-[#121212]">Weekly</option>
+                                                            <option value="monthly" className="bg-[#121212]">Monthly</option>
+                                                        </select>
+                                                   </div>
+                                                </div>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
                                 </div>
 
                                 <Button size="lg" className="w-full py-8 text-xl" onClick={handleNext} rightIcon={<ArrowRight />}>
@@ -469,12 +595,19 @@ Thank you for choosing Xieriee Secure Core.
 
                                 <div className="bg-white/5 rounded-3xl p-6 border border-white/5 divide-y divide-white/5">
                                     <div className="flex justify-between pb-3">
-                                        <span className="text-white/40 text-xs">Ledger Entry</span>
-                                        <span className="font-mono text-xs text-white">#TXN-{recentResult?.id || "----"}</span>
+                                        <span className="text-white/40 text-xs">Operation Status</span>
+                                        <span className={cn(
+                                            "text-xs font-black uppercase tracking-widest",
+                                            recentResult?.status === 'scheduled' ? "text-primary" : "text-emerald-500"
+                                        )}>
+                                            {recentResult?.status === 'scheduled' ? "Transmission Queued" : "Ledger Entry Success"}
+                                        </span>
                                     </div>
                                     <div className="flex justify-between pt-3">
-                                        <span className="text-white/40 text-xs">Timestamp</span>
-                                        <span className="text-xs text-white">{formatDate(new Date())}</span>
+                                        <span className="text-white/40 text-xs">Mode</span>
+                                        <span className="text-xs text-white uppercase font-black tracking-widest">
+                                            {isScheduled ? `Scheduled (${scheduleFrequency})` : "Instant Settlement"}
+                                        </span>
                                     </div>
                                 </div>
 

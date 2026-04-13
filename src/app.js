@@ -5,6 +5,10 @@ const authRouter = require("./routes/auth.route")
 const accountRouter = require("./routes/account.routes")
 const transactionRouter = require("./routes/transaction.routes")
 const userRouter = require("./routes/user.route")
+const beneficiaryRouter = require("./routes/beneficiary.routes")
+const scheduledTransferRouter = require("./routes/scheduledTransfer.routes")
+const notificationRouter = require("./routes/notification.routes")
+const adminRouter = require("./routes/admin.routes")
 
 const app = express()
 
@@ -48,6 +52,10 @@ app.use("/api/auth", authRouter)
 app.use("/api/account", accountRouter)
 app.use("/api/transaction", transactionRouter)
 app.use("/api/users", userRouter)
+app.use("/api/beneficiaries", beneficiaryRouter)
+app.use("/api/scheduled-transfers", scheduledTransferRouter)
+app.use("/api/notifications", notificationRouter)
+app.use("/api/admin", adminRouter)
 
 // 404 Handler
 app.use((req, res, next) => {

@@ -13,18 +13,21 @@ import {
     Search,
     Loader2,
     Menu,
-    X as CloseIcon
+    X as CloseIcon,
+    Shield
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { motion } from "framer-motion"
 import { deleteCookie } from "cookies-next"
 import { api, endpoints } from "@/lib/api"
 import toast from "react-hot-toast"
+import NotificationBell from "@/components/NotificationBell"
 
 const sidebarItems = [
     { icon: LayoutDashboard, label: "Overview", href: "/dashboard" },
     { icon: ArrowUpRight, label: "Send Money", href: "/dashboard/transfer" },
     { icon: HistoryIcon, label: "History", href: "/dashboard/history" },
+    { icon: Shield, label: "Admin", href: "/dashboard/admin", adminOnly: true },
     { icon: User, label: "Profile", href: "/dashboard/profile" },
     { icon: Settings, label: "Settings", href: "/dashboard/settings" },
 ]
@@ -119,7 +122,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </div>
 
                 <nav className="flex-1 px-4 space-y-2 overflow-y-auto">
-                    {sidebarItems.map((item) => (
+                    {sidebarItems
+                        .filter(item => !item.adminOnly || user?.role === 'admin')
+                        .map((item) => (
                         <Link
                             key={item.href}
                             href={item.href}
@@ -180,17 +185,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
                     <div className="flex items-center gap-4 md:gap-8 flex-shrink-0">
                         <div className="flex items-center gap-4">
-                            <button className="relative w-12 h-12 flex items-center justify-center rounded-2xl bg-white/5 hover:bg-white/10 transition-all hover:scale-105 border border-white/5">
-                                <Bell size={20} />
-                                <span className="absolute top-3 right-3 w-2.5 h-2.5 bg-primary rounded-full border-2 border-[#0a0f18]" />
-                            </button>
+                            <NotificationBell />
                         </div>
 
                         <div className="flex items-center gap-4 pl-8 border-l border-white/5">
                             <div className="text-right hidden sm:block">
                                 <p className="text-sm font-black">{user?.name}</p>
                                 <p className="text-[10px] uppercase font-black tracking-widest text-primary">
-                                    {user?.is_system ? "System Admin" : "Premium Member"}
+                                    {user?.role === 'admin' ? "System Admin" : "Premium Member"}
                                 </p>
                             </div>
                             <div className="w-12 h-12 rounded-[18px] bg-gradient-to-tr from-primary to-emerald-400 p-0.5 shadow-xl shadow-primary/10">

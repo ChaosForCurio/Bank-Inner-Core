@@ -130,4 +130,8 @@ export const endpoints = {
     users: {
         lookup: (uuid: string) => `users/lookup/${uuid}`,
     },
+    notifications: {
+        vapidKey: "notifications/vapid-public-key",
+        subscribe: "notifications/subscribe",
+    }
 };

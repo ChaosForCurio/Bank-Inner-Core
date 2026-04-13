@@ -42,6 +42,7 @@ export default function HistoryPage({ user }: { user?: any }) {
     const filteredTransactions = transactions.filter(tx =>
         tx.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         tx.type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        tx.transaction_uuid?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         tx.amount.toString().includes(searchTerm)
     )
 
@@ -138,6 +139,7 @@ export default function HistoryPage({ user }: { user?: any }) {
                                 <tr className="border-b border-white/5 bg-white/[0.01]">
                                     <th className="px-8 py-6 text-[10px] font-black tracking-[0.2em] text-white/30 uppercase">Transaction Entity</th>
                                     <th className="hidden sm:table-cell px-8 py-6 text-[10px] font-black tracking-[0.2em] text-white/30 uppercase">Classification</th>
+                                    <th className="hidden lg:table-cell px-8 py-6 text-[10px] font-black tracking-[0.2em] text-white/30 uppercase">Ref ID</th>
                                     <th className="hidden md:table-cell px-8 py-6 text-[10px] font-black tracking-[0.2em] text-white/30 uppercase">Timestamp</th>
                                     <th className="px-8 py-6 text-[10px] font-black tracking-[0.2em] text-white/30 uppercase text-right">Magnitude</th>
                                 </tr>
@@ -182,6 +184,11 @@ export default function HistoryPage({ user }: { user?: any }) {
                                                         {tx.transaction_type || "Transfer"}
                                                     </span>
                                                 </div>
+                                            </td>
+                                            <td className="hidden lg:table-cell px-8 py-5">
+                                                <span className="text-[10px] font-mono font-bold text-white/30 bg-white/[0.03] px-2.5 py-1.5 rounded-lg border border-white/5 group-hover:border-white/20 opacity-60 group-hover:opacity-100 transition-all">
+                                                    TX-{tx.transaction_uuid?.split('-')[0].toUpperCase()}
+                                                </span>
                                             </td>
                                             <td className="hidden md:table-cell px-8 py-5">
                                                 <div className="flex items-center gap-3 text-sm text-white/40 font-medium">

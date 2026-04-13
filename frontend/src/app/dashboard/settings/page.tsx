@@ -116,9 +116,10 @@ export default function SettingsPage() {
 
     return (
         <div className="max-w-3xl mx-auto space-y-8 relative">
-            <header>
-                <h1 className="text-4xl font-black font-outfit">Settings</h1>
-                <p className="text-muted-foreground mt-1">Customize your banking experience and manage security.</p>
+            <header className="relative">
+                <div className="absolute -top-20 -left-20 w-64 h-64 bg-primary/10 rounded-full blur-[100px] pointer-events-none" />
+                <h1 className="text-5xl font-black font-outfit tracking-tighter">Settings</h1>
+                <p className="text-white/40 mt-2 font-medium">Customize your core banking parameters and identity credentials.</p>
             </header>
 
             <div className="space-y-10">
@@ -137,15 +138,15 @@ export default function SettingsPage() {
                         <GlassCard className="rounded-[32px] overflow-hidden">
                             <div className="divide-y divide-white/5">
                                 {section.items.map((item, i) => (
-                                    <div
-                                        key={i}
-                                        onClick={item.onClick}
-                                        className="p-4 md:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-white/[0.02] transition-colors cursor-pointer group"
-                                    >
-                                        <div className="flex items-start sm:items-center gap-4 sm:gap-5">
-                                            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/5 rounded-2xl flex-shrink-0 flex items-center justify-center group-hover:bg-primary/10 group-hover:text-primary transition-colors mt-1 sm:mt-0">
-                                                <item.icon size={22} className="w-5 h-5 sm:w-[22px] sm:h-[22px]" />
-                                            </div>
+                                        <div
+                                            key={i}
+                                            onClick={() => (item as any).onClick?.()}
+                                            className="p-5 md:p-8 flex flex-col sm:flex-row sm:items-center justify-between gap-6 hover:bg-white/[0.03] transition-all cursor-pointer group relative"
+                                        >
+                                            <div className="flex items-start sm:items-center gap-5 sm:gap-6">
+                                                <div className="w-12 h-12 sm:w-14 sm:h-14 bg-white/5 rounded-2xl flex-shrink-0 flex items-center justify-center group-hover:bg-primary/20 group-hover:text-primary group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
+                                                    <item.icon size={24} className="w-6 h-6 sm:w-7 sm:h-7" />
+                                                </div>
                                             <div>
                                                 <p className="font-bold text-base sm:text-lg">{item.label}</p>
                                                 <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 max-w-[200px] sm:max-w-none">{item.description}</p>
@@ -182,69 +183,77 @@ export default function SettingsPage() {
                             exit={{ opacity: 0 }}
                             onClick={() => setIsPasskeyModalOpen(false)}
                             className="absolute inset-0 bg-black/80 backdrop-blur-xl"
-                        />
-                        <motion.div
+                        />                        <motion.div
                             initial={{ opacity: 0, scale: 0.95, y: 20 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                            className="relative w-full max-w-lg bg-[#0A0A0A] border border-white/5 rounded-[40px] shadow-2xl overflow-hidden"
+                            className="relative w-full max-w-lg bg-[#0A0A0A]/90 backdrop-blur-2xl border border-white/10 rounded-[48px] shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden"
                         >
-                            <div className="p-8 space-y-8">
+                            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-primary to-transparent opacity-50" />
+                            
+                            <div className="p-10 space-y-10">
                                 <div className="flex items-center justify-between">
-                                    <div>
-                                        <h3 className="text-2xl font-black font-outfit italic tracking-tight">Windows Hello</h3>
-                                        <p className="text-sm text-muted-foreground mt-1">Manage your Windows Hello credentials.</p>
+                                    <div className="space-y-1">
+                                        <h3 className="text-3xl font-black font-outfit italic tracking-tighter text-white">Windows Hello</h3>
+                                        <p className="text-sm text-white/40 font-medium">Biometric Access Management</p>
                                     </div>
                                     <button 
                                         onClick={handleRegisterPasskey}
                                         disabled={registering}
-                                        className="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-black disabled:opacity-50"
+                                        className="w-14 h-14 bg-white text-black hover:bg-primary hover:text-white rounded-[24px] flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-xl shadow-white/5 disabled:opacity-50"
                                     >
-                                        {registering ? <Loader2 className="animate-spin" size={20} /> : <Plus size={24} />}
+                                        {registering ? <Loader2 className="animate-spin" size={24} /> : <Plus size={28} />}
                                     </button>
                                 </div>
 
                                 <div className="space-y-4">
                                     {loadingPasskeys ? (
-                                        <div className="flex justify-center p-8"><Loader2 className="animate-spin text-primary" size={32} /></div>
+                                        <div className="flex justify-center py-12"><Loader2 className="animate-spin text-primary" size={32} /></div>
                                     ) : passkeys.length > 0 ? (
                                         passkeys.map((pk) => (
-                                            <div key={pk.id} className="p-4 bg-white/5 rounded-2xl flex items-center justify-between group">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-10 h-10 bg-primary/10 text-primary rounded-xl flex items-center justify-center">
-                                                        <Fingerprint size={20} />
+                                            <motion.div 
+                                                layout
+                                                key={pk.id} 
+                                                className="p-5 bg-white/[0.03] border border-white/5 rounded-3xl flex items-center justify-between group/item hover:bg-white/[0.06] hover:border-white/10 transition-all"
+                                            >
+                                                <div className="flex items-center gap-5">
+                                                    <div className="w-12 h-12 bg-primary/10 text-primary rounded-2xl flex items-center justify-center group-hover/item:scale-110 transition-transform">
+                                                        <Fingerprint size={24} />
                                                     </div>
                                                     <div>
-                                                        <p className="font-bold">{pk.name}</p>
-                                                        <p className="text-[10px] uppercase tracking-widest text-muted-foreground mt-0.5">
-                                                            {new Date(pk.created_at).toLocaleDateString()}
+                                                        <p className="font-bold text-white text-lg">{pk.name}</p>
+                                                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/20 mt-1">
+                                                            Registered {new Date(pk.created_at).toLocaleDateString()}
                                                         </p>
                                                     </div>
                                                 </div>
                                                 <button 
                                                     onClick={() => handleDeletePasskey(pk.id)}
-                                                    className="p-2 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all"
+                                                    className="p-3 text-white/20 hover:text-red-400 hover:bg-red-400/10 rounded-2xl transition-all"
                                                 >
-                                                    <Trash2 size={18} />
+                                                    <Trash2 size={20} />
                                                 </button>
-                                            </div>
+                                            </motion.div>
                                         ))
                                     ) : (
-                                        <div className="p-8 text-center border border-dashed border-white/10 rounded-3xl">
-                                            <Fingerprint className="mx-auto text-muted-foreground mb-3 opacity-20" size={48} />
-                                            <p className="text-sm text-muted-foreground">No Windows Hello credentials registered yet.</p>
+                                        <div className="py-16 text-center border-2 border-dashed border-white/5 rounded-[40px] bg-white/[0.01]">
+                                            <div className="w-20 h-20 bg-white/5 rounded-[32px] flex items-center justify-center mx-auto mb-6 opacity-20">
+                                                <Fingerprint size={40} />
+                                            </div>
+                                            <p className="text-white/40 font-medium px-10">No Windows Hello credentials registered with this account.</p>
                                         </div>
                                     )}
                                 </div>
 
                                 <button 
                                     onClick={() => setIsPasskeyModalOpen(false)}
-                                    className="w-full py-4 text-sm font-black uppercase tracking-widest bg-white/5 hover:bg-white/10 rounded-2xl transition-all"
+                                    className="w-full py-5 text-xs font-black uppercase tracking-[0.3em] bg-white/5 hover:bg-white/10 text-white/60 hover:text-white rounded-[24px] transition-all border border-white/5"
                                 >
-                                    Close
+                                    Dismiss
                                 </button>
                             </div>
                         </motion.div>
+
                     </div>
                 )}
             </AnimatePresence>
