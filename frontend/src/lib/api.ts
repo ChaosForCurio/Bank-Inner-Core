@@ -10,6 +10,12 @@ const getBaseUrl = () => {
     // we should try to connect to the backend on the same host
     if (typeof window !== "undefined") {
         const hostname = window.location.hostname;
+        
+        // If deployed to a secure context (like Vercel), default to the same host over HTTPS without port 5000
+        if (window.location.protocol === "https:") {
+            return `https://${hostname}/api`;
+        }
+
         if (hostname !== "localhost" && hostname !== "127.0.0.1") {
             return `http://${hostname}:5000/api`;
         }

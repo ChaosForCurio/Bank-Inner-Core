@@ -44,7 +44,7 @@ export default function AdminDashboard() {
             setHistory(historyRes.data.transactions)
         } catch (error: any) {
             console.error("Admin data fetch error:", error)
-            toast.error("Access denied or failed to load system data")
+            toast.error(error?.message || "Access denied or failed to load system data")
         } finally {
             setLoading(false)
         }

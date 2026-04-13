@@ -1,0 +1,28 @@
+const jwt = require('jsonwebtoken');
+require('dotenv').config();
+const { sql } = require('../src/db');
+
+async function run() {
+    const [user] = await sql`SELECT * FROM users WHERE email='system@bank.com'`;
+    if (!user) return console.log('not found');
+    const token = jwt.sign({ id: user.id, email: user.email, role: user.role, uuid: user.uuid }, process.env.JWT_SECRET || 'your-secret-key-change-this', { expiresIn: '1h' });
+    console.log('Token created:', token);
+    
+    let res = await fetch('http://localhost:5000/api/admin/stats', {
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
+    console.log('Admin Stats Response:', await res.text());
+    
+    res = await fetch('http://localhost:5000/api/admin/users', {
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const json2Text = await res.text();
+    try { 
+        const json2 = JSON.parse(json2Text); 
+        console.log('Admin Users Response:', json2.users ? json2.users.length + ' users' : json2Text); 
+    } catch(e) { 
+        console.log('users res fail:', json2Text); 
+    }
+    process.exit(0);
+}
+run().catch(console.error);
