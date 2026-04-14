@@ -24,3 +24,7 @@ services:
         sync: false
       - key: VAPID_SUBJECT
         sync: false
+      - key: RP_ID
+        sync: false
+      - key: ORIGIN
+        sync: false

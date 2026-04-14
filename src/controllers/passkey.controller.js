@@ -4,9 +4,12 @@ const AuditModel = require("../models/audit.model");
 const { generateResetToken } = require("../utils/token.util");
 
 // RP (Relying Party) settings
+// In production, these should be set in environment variables:
+// RP_ID: the domain of your site (e.g., 'vercel.app' or 'bank-inner-core-4s7p.vercel.app')
+// ORIGIN: the full URL of your frontend (e.g., 'https://bank-inner-core-4s7p.vercel.app')
 const rpName = "Xieriee Bank";
 const rpID = process.env.RP_ID || "localhost";
-const origin = process.env.ORIGIN || `http://${rpID}:3000`;
+const origin = process.env.ORIGIN || (rpID === "localhost" ? "http://localhost:3000" : `https://${rpID}`);
 
 /**
  * Controller for Passkey (WebAuthn) Management
