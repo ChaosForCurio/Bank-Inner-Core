@@ -3,13 +3,44 @@ const UserModel = require("../models/user.model");
 const AuditModel = require("../models/audit.model");
 const { generateResetToken } = require("../utils/token.util");
 
-// RP (Relying Party) settings
-// In production, these should be set in environment variables:
-// RP_ID: the domain of your site (e.g., 'vercel.app' or 'bank-inner-core-4s7p.vercel.app')
-// ORIGIN: the full URL of your frontend (e.g., 'https://bank-inner-core-4s7p.vercel.app')
 const rpName = "Xieriee Bank";
-const rpID = process.env.RP_ID || "localhost";
-const origin = process.env.ORIGIN || (rpID === "localhost" ? "http://localhost:3000" : `https://${rpID}`);
+
+/**
+ * Robust helper to determine RP ID and Origin dynamically.
+ * This handles local dev, production, and Vercel preview environments automatically.
+ */
+const getWebAuthnConfig = (req) => {
+    // 1. Check for manual overrides in environment variables
+    const manualRpID = process.env.RP_ID;
+    const manualOrigin = process.env.ORIGIN;
+
+    // 2. Identify incoming request's origin
+    const reqOrigin = req.headers.origin 
+        || (req.headers.referer ? new URL(req.headers.referer).origin : null);
+
+    if (reqOrigin) {
+        try {
+            const url = new URL(reqOrigin);
+            const hostname = url.hostname;
+
+            // If it's a Vercel preview or branch deployment, use its domain as the RP ID
+            if (hostname.endsWith('.vercel.app')) {
+                return { 
+                    rpID: manualRpID || hostname, 
+                    origin: manualOrigin || reqOrigin 
+                };
+            }
+        } catch (e) {
+            // Fallback
+        }
+    }
+
+    // 3. Final Fallback (Production or Localhost)
+    const rpID = manualRpID || "localhost";
+    const origin = manualOrigin || (rpID === "localhost" ? "http://localhost:3000" : `https://${rpID}`);
+    
+    return { rpID, origin };
+};
 
 /**
  * Controller for Passkey (WebAuthn) Management
@@ -29,6 +60,7 @@ const PasskeyController = {
             }
 
             const userPasskeys = await PasskeyModel.listActiveForUser(user.id);
+            const { rpID } = getWebAuthnConfig(req);
 
             const options = await generateRegistrationOptions({
                 rpName,
@@ -75,6 +107,7 @@ const PasskeyController = {
             }
 
             const expectedChallenge = user.webauthn_challenge;
+            const { rpID, origin } = getWebAuthnConfig(req);
 
             const verification = await verifyRegistrationResponse({
                 response: body,
@@ -197,6 +230,8 @@ const PasskeyController = {
                 });
             }
 
+            const { rpID } = getWebAuthnConfig(req);
+
             const options = await generateAuthenticationOptions({
                 rpID,
                 userVerification: "preferred",
@@ -242,6 +277,8 @@ const PasskeyController = {
             if (!passkey || passkey.user_id !== user.id) {
                 return res.status(400).json({ success: false, message: "Passkey not found for this account" });
             }
+
+            const { rpID, origin } = getWebAuthnConfig(req);
 
             const verification = await verifyAuthenticationResponse({
                 response: body,
