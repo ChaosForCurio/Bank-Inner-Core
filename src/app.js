@@ -9,6 +9,8 @@ const beneficiaryRouter = require("./routes/beneficiary.routes")
 const scheduledTransferRouter = require("./routes/scheduledTransfer.routes")
 const notificationRouter = require("./routes/notification.routes")
 const adminRouter = require("./routes/admin.routes")
+const { sql } = require("./db")
+
 
 const app = express()
 
@@ -20,8 +22,12 @@ const allowedOrigins = [
     "http://127.0.0.1:3000",
     "http://127.0.0.1:3001",
     "http://127.0.0.1:3002",
-    "https://bank-inner-core-4s7p.vercel.app"
+    "https://bank-inner-core-4s7p.vercel.app",
+    "https://bank-inner-core-3.onrender.com",
+    "https://bank-inner-core-4s7p-kkd5fojss-chaosforcurios-projects.vercel.app"
 ];
+
+
 
 app.use(cors({
     origin: function (origin, callback) {
@@ -31,10 +37,15 @@ app.use(cors({
         }
 
         if (!origin || allowedOrigins.includes(origin)) {
-            callback(null, true);
-        } else {
-            callback(new Error('Not allowed by CORS'));
+            return callback(null, true);
         }
+
+        // Allow any Vercel preview deployment for this project
+        if (origin.startsWith('https://bank-inner-core-4s7p') && origin.endsWith('.vercel.app')) {
+            return callback(null, true);
+        }
+
+        callback(new Error('Not allowed by CORS'));
     },
     credentials: true
 }))
@@ -46,6 +57,27 @@ app.use((req, res, next) => {
 
 app.use(cookieParser())
 app.use(express.json())
+
+// Health Check
+app.get("/api/health", async (req, res) => {
+    try {
+        await sql`SELECT 1`;
+        res.json({
+            success: true,
+            message: "Backend is healthy",
+            database: "connected",
+            timestamp: new Date().toISOString(),
+            uptime: process.uptime()
+        });
+    } catch (error) {
+        res.status(503).json({
+            success: false,
+            message: "Backend unhealthy",
+            database: "disconnected",
+            error: error.message
+        });
+    }
+});
 
 // Routes
 app.use("/api/auth", authRouter)
