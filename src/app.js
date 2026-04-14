@@ -1,6 +1,10 @@
 const express = require("express")
 const cookieParser = require("cookie-parser")
 const cors = require("cors")
+const helmet = require("helmet")
+const morgan = require("morgan")
+const requestIdMiddleware = require("./middleware/request-id.middleware")
+const env = require("./config/env.config")
 const authRouter = require("./routes/auth.route")
 const accountRouter = require("./routes/account.routes")
 const transactionRouter = require("./routes/transaction.routes")
@@ -11,23 +15,15 @@ const notificationRouter = require("./routes/notification.routes")
 const adminRouter = require("./routes/admin.routes")
 const { sql } = require("./db")
 
-
 const app = express()
+app.use(helmet())
 
-// Middleware
-const allowedOrigins = [
-    "http://localhost:3000",
-    "http://localhost:3001",
-    "http://localhost:3002",
-    "http://127.0.0.1:3000",
-    "http://127.0.0.1:3001",
-    "http://127.0.0.1:3002",
-    "https://bank-inner-core-4s7p.vercel.app",
-    "https://bank-inner-core-3.onrender.com",
-    "https://bank-inner-core-4s7p-kkd5fojss-chaosforcurios-projects.vercel.app"
-];
+// Request correlation
+app.use(requestIdMiddleware)
 
-
+// Standardize Logging with Morgan
+morgan.token('request-id', (req) => req.id)
+app.use(morgan(':remote-addr - :remote-user [:date[clf]] ":method :url HTTP/:http-version" :status :res[content-length] ":referrer" ":user-agent" - RequestID: :request-id'))
 
 app.use(cors({
     origin: function (origin, callback) {
@@ -50,10 +46,7 @@ app.use(cors({
     credentials: true
 }))
 
-app.use((req, res, next) => {
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`)
-    next()
-})
+// Removed manual logging in favor of morgan
 
 app.use(cookieParser())
 app.use(express.json())
@@ -97,19 +90,29 @@ app.use((req, res, next) => {
 });
 
 // Global Error Handler
-
 app.use((err, req, res, next) => {
-    console.error(`[${new Date().toISOString()}] Error: ${req.method} ${req.originalUrl}`, err);
+    const requestId = req.id || "unknown";
+    console.error(`[${new Date().toISOString()}] [RequestID: ${requestId}] Error: ${req.method} ${req.originalUrl}`, err);
 
-    // Default to 500 if no status code is provided
-    const statusCode = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
+    // Standardize error types
+    let statusCode = err.status || err.statusCode || 500;
+    let message = err.message || "Internal Server Error";
+    let errors = undefined;
+
+    // Handle Zod Validation Errors
+    if (err.name === 'ZodError') {
+        statusCode = 400;
+        message = "Validation Error";
+        errors = err.errors;
+    }
 
     res.status(statusCode).json({
         success: false,
         message: message,
-        // Include stack trace only in development (simplified check)
-        stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+        errors: errors,
+        requestId: requestId,
+        // Include stack trace only in development
+        stack: env.NODE_ENV === 'development' ? err.stack : undefined
     });
 });
 
