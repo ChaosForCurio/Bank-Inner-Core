@@ -1,26 +1,23 @@
 import axios, { AxiosError } from "axios";
 import { getCookie } from "cookies-next";
 
-// Ensure the base URL ends with a slash to avoid mangled paths when joining relative endpoints
-// In production on Vercel, we use relative /api paths to benefit from same-domain proxying
+// Determines the API base URL.
+// NEXT_PUBLIC_API_URL MUST be set in production (Vercel) environment variables
+// pointing to the Render backend, e.g.: https://bank-inner-core-3.onrender.com/api
 const getBaseUrl = () => {
+    // Always prefer the explicit env var (required in production)
     if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
 
-    // In browser, if we are on a local network (e.g. 192.168.x.x), 
-    // we should try to connect to the backend on the same host
     if (typeof window !== "undefined") {
         const hostname = window.location.hostname;
-        
-        // If deployed to a secure context (like Vercel), default to the same host over HTTPS without port 5000
-        if (window.location.protocol === "https:") {
-            return `https://${hostname}/api`;
-        }
 
+        // Local network device (e.g. phone on same Wi-Fi) — connect to dev backend
         if (hostname !== "localhost" && hostname !== "127.0.0.1") {
             return `http://${hostname}:5000/api`;
         }
     }
 
+    // Default: local development backend
     return "http://localhost:5000/api";
 };
 

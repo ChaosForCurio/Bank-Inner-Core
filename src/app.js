@@ -16,7 +16,12 @@ const adminRouter = require("./routes/admin.routes")
 const { sql } = require("./db")
 
 const app = express()
-app.use(helmet())
+
+// Configure Helmet with cross-origin allowed for the banking API
+app.use(helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }
+}))
 
 // Request correlation
 app.use(requestIdMiddleware)
@@ -25,25 +30,32 @@ app.use(requestIdMiddleware)
 morgan.token('request-id', (req) => req.id)
 app.use(morgan(':remote-addr - :remote-user [:date[clf]] ":method :url HTTP/:http-version" :status :res[content-length] ":referrer" ":user-agent" - RequestID: :request-id'))
 
+const allowedOrigins = [
+    env.ORIGIN,
+    "https://bank-inner-core-4s7p.vercel.app"
+].filter(Boolean).map(o => o.replace(/\/$/, ""));
+
 app.use(cors({
     origin: function (origin, callback) {
-        // Allow all origins in development to facilitate testing on mobile devices/local network
-        if (process.env.NODE_ENV !== "production") {
+        // Allow all origins in development
+        if (!origin || process.env.NODE_ENV !== "production") {
             return callback(null, true);
         }
 
-        if (!origin || allowedOrigins.includes(origin)) {
-            return callback(null, true);
-        }
+        const normalizedOrigin = origin.replace(/\/$/, "");
+        const isVercelPreview = normalizedOrigin.startsWith('https://bank-inner-core-') && normalizedOrigin.endsWith('.vercel.app');
+        const isAllowed = allowedOrigins.includes(normalizedOrigin) || isVercelPreview;
 
-        // Allow any Vercel preview deployment for this project
-        if (origin.startsWith('https://bank-inner-core-4s7p') && origin.endsWith('.vercel.app')) {
-            return callback(null, true);
+        if (isAllowed) {
+            callback(null, true);
+        } else {
+            console.warn(`[CORS] Rejected origin: ${origin}`);
+            callback(null, false);
         }
-
-        callback(new Error('Not allowed by CORS'));
     },
-    credentials: true
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept", "X-Request-Id"]
 }))
 
 // Removed manual logging in favor of morgan
