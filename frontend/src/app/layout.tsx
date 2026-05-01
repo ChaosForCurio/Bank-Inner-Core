@@ -15,6 +15,7 @@ export const metadata: Metadata = {
 };
 
 import { ErrorBoundary } from "@/components/ui/error-boundary";
+import { PrivacyProvider } from "@/context/privacy-context";
 
 export default function RootLayout({
   children,
@@ -25,7 +26,9 @@ export default function RootLayout({
     <html lang="en" className="dark scroll-smooth" data-scroll-behavior="smooth">
       <body className={`${inter.variable} ${outfit.variable} font-sans bg-[#0a0a0a] text-white selection:bg-white selection:text-black`}>
         <ErrorBoundary>
-          {children}
+          <PrivacyProvider>
+            {children}
+          </PrivacyProvider>
         </ErrorBoundary>
         <Toaster
           position="bottom-right"

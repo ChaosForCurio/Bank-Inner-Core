@@ -134,7 +134,24 @@ export const endpoints = {
         lookup: (uuid: string) => `users/lookup/${uuid}`,
     },
     notifications: {
+        list: "notifications",
         vapidKey: "notifications/vapid-public-key",
         subscribe: "notifications/subscribe",
+        markRead: (id: number | string) => `notifications/${id}/read`,
+    },
+    exchange: {
+        rates: (base: string) => `exchange/rates?base=${base}`,
+        preview: "exchange/preview",
+        execute: "exchange/execute",
+    },
+    virtualCards: {
+        create: "virtual-cards",
+        list: (accountId: number | string) => `virtual-cards/account/${accountId}`,
+        toggle: (cardId: number | string) => `virtual-cards/${cardId}/status`,
+    },
+    paymentRequests: {
+        create: "payment-requests",
+        publicDetails: (token: string) => `payment-requests/${token}`,
+        fulfill: (token: string) => `payment-requests/${token}/fulfill`
     }
 };

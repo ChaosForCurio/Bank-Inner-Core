@@ -14,7 +14,9 @@ import {
     Loader2,
     Menu,
     X as CloseIcon,
-    Shield
+    Shield,
+    Globe,
+    CreditCard
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { motion } from "framer-motion"
@@ -26,6 +28,8 @@ import NotificationBell from "@/components/NotificationBell"
 const sidebarItems = [
     { icon: LayoutDashboard, label: "Overview", href: "/dashboard" },
     { icon: ArrowUpRight, label: "Send Money", href: "/dashboard/transfer" },
+    { icon: Globe, label: "Global Wallets", href: "/dashboard/wallets" },
+    { icon: CreditCard, label: "Virtual Cards", href: "/dashboard/cards" },
     { icon: HistoryIcon, label: "History", href: "/dashboard/history" },
     { icon: Shield, label: "Admin", href: "/dashboard/admin", adminOnly: true },
     { icon: User, label: "Profile", href: "/dashboard/profile" },

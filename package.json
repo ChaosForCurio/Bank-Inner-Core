@@ -21,6 +21,7 @@
     "@neondatabase/serverless": "^1.0.2",
     "@simplewebauthn/server": "^13.3.0",
     "bcryptjs": "^3.0.3",
+    "compression": "^1.8.1",
     "cookie-parser": "^1.4.7",
     "cookieparser": "^0.1.0",
     "cors": "^2.8.6",

@@ -1,17 +1,27 @@
 "use client"
-import { useState } from "react"
+import React, { useState, Suspense } from "react"
 import Link from "next/link"
 import { motion } from "framer-motion"
 import { Shield, Mail, Lock, Loader2, ArrowLeft } from "lucide-react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { setCookie } from "cookies-next"
 import toast from "react-hot-toast"
 import { api, endpoints } from "@/lib/api"
 
 export default function LoginPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen bg-background flex flex-col items-center justify-center"><Loader2 className="animate-spin text-primary" size={32} /></div>}>
+            <LoginForm />
+        </Suspense>
+    )
+}
+
+function LoginForm() {
     const [loading, setLoading] = useState(false)
     const [formData, setFormData] = useState({ email: "", password: "" })
     const router = useRouter()
+    const searchParams = useSearchParams()
+    const redirectUrl = searchParams.get("redirect") || "/dashboard"
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -21,7 +31,7 @@ export default function LoginPage() {
             // Persist token for 7 days so the user stays logged in across browser restarts
             setCookie("token", data.accessToken, { maxAge: 60 * 60 * 24 * 7 })
             toast.success("Welcome back!")
-            router.push("/dashboard")
+            router.push(redirectUrl)
         } catch (error: any) {
             // Handle new error response structure
             const message = error.response?.data?.message || "Login failed"

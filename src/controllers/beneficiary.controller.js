@@ -1,103 +1,45 @@
-const { sql } = require("../db");
+const BeneficiaryModel = require('../models/beneficiary.model');
 
 const BeneficiaryController = {
-    /**
-     * addBeneficiary - Add a beneficiary for the logged in user
-     */
-    async addBeneficiary(req, res) {
-        const { beneficiaryAccountId, nickname } = req.body;
-        const userId = req.user.id;
-
-        if (!beneficiaryAccountId || !nickname) {
-            return res.status(400).json({ message: "beneficiaryAccountId and nickname are required" });
-        }
-
+    async create(req, res) {
         try {
-            // 1. Verify that the beneficiary account exists
-            const account = await sql`SELECT * FROM accounts WHERE id = ${beneficiaryAccountId} LIMIT 1`;
-            if (account.length === 0) {
-                return res.status(404).json({ message: "Beneficiary account not found" });
+            const { name, accountNumber, bankName, category } = req.body;
+            const userId = req.user.id;
+
+            if (!name || !accountNumber) {
+                return res.status(400).json({ message: 'Name and account number are required' });
             }
 
-            // 2. Check if already added
-            const existing = await sql`
-                SELECT * FROM beneficiaries 
-                WHERE user_id = ${userId} AND beneficiary_account_id = ${beneficiaryAccountId} 
-                LIMIT 1
-            `;
-            if (existing.length > 0) {
-                return res.status(400).json({ message: "This beneficiary is already in your list" });
-            }
-
-            // 3. Add beneficiary
-            const beneficiary = await sql`
-                INSERT INTO beneficiaries (user_id, beneficiary_account_id, nickname)
-                VALUES (${userId}, ${beneficiaryAccountId}, ${nickname})
-                RETURNING *
-            `;
-
-            return res.status(201).json({
-                status: "success",
-                message: "Beneficiary added successfully",
-                beneficiary: beneficiary[0]
+            const beneficiary = await BeneficiaryModel.create({
+                userId, name, accountNumber, bankName, category
             });
+
+            res.status(201).json({ message: 'Beneficiary added', beneficiary });
         } catch (error) {
-            console.error("Add beneficiary error:", error);
-            return res.status(500).json({ message: "Failed to add beneficiary" });
+            console.error('Create beneficiary error:', error);
+            res.status(500).json({ message: 'Internal server error' });
         }
     },
 
-    /**
-     * getBeneficiaries - Get all beneficiaries for the logged in user
-     */
-    async getBeneficiaries(req, res) {
-        const userId = req.user.id;
-
+    async list(req, res) {
         try {
-            const beneficiaries = await sql`
-                SELECT b.*, u.name as user_name, u.email as user_email, a.currency
-                FROM beneficiaries b
-                JOIN accounts a ON b.beneficiary_account_id = a.id
-                JOIN users u ON a.user_id = u.id
-                WHERE b.user_id = ${userId}
-                ORDER BY b.nickname ASC
-            `;
-
-            return res.status(200).json({
-                status: "success",
-                beneficiaries
-            });
+            const beneficiaries = await BeneficiaryModel.findByUserId(req.user.id);
+            res.status(200).json({ beneficiaries });
         } catch (error) {
-            console.error("Get beneficiaries error:", error);
-            return res.status(500).json({ message: "Failed to retrieve beneficiaries" });
+            console.error('List beneficiaries error:', error);
+            res.status(500).json({ message: 'Internal server error' });
         }
     },
 
-    /**
-     * deleteBeneficiary - Remove a beneficiary
-     */
-    async deleteBeneficiary(req, res) {
-        const { id } = req.params;
-        const userId = req.user.id;
-
+    async remove(req, res) {
         try {
-            const result = await sql`
-                DELETE FROM beneficiaries 
-                WHERE id = ${id} AND user_id = ${userId}
-                RETURNING id
-            `;
-
-            if (result.length === 0) {
-                return res.status(404).json({ message: "Beneficiary not found or access denied" });
-            }
-
-            return res.status(200).json({
-                status: "success",
-                message: "Beneficiary removed"
-            });
+            const { id } = req.params;
+            const deleted = await BeneficiaryModel.delete(id, req.user.id);
+            if (!deleted) return res.status(404).json({ message: 'Beneficiary not found' });
+            res.status(200).json({ message: 'Beneficiary removed' });
         } catch (error) {
-            console.error("Delete beneficiary error:", error);
-            return res.status(500).json({ message: "Failed to remove beneficiary" });
+            console.error('Delete beneficiary error:', error);
+            res.status(500).json({ message: 'Internal server error' });
         }
     }
 };

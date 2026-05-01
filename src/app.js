@@ -3,6 +3,7 @@ const cookieParser = require("cookie-parser")
 const cors = require("cors")
 const helmet = require("helmet")
 const morgan = require("morgan")
+const compression = require("compression")
 const requestIdMiddleware = require("./middleware/request-id.middleware")
 const env = require("./config/env.config")
 const authRouter = require("./routes/auth.route")
@@ -13,17 +14,22 @@ const beneficiaryRouter = require("./routes/beneficiary.routes")
 const scheduledTransferRouter = require("./routes/scheduledTransfer.routes")
 const notificationRouter = require("./routes/notification.routes")
 const adminRouter = require("./routes/admin.routes")
+const exchangeRouter = require("./routes/exchange.routes")
+const virtualCardRouter = require("./routes/virtualCard.routes")
+const paymentRequestRouter = require("./routes/paymentRequest.routes")
+const analyticsRouter = require("./routes/analytics.routes")
+const vaultRouter = require("./routes/vault.routes")
+const { apiRateLimiter } = require("./middleware/rate-limit.middleware")
 const { sql } = require("./db")
 
 const app = express()
 
-// Configure Helmet with cross-origin allowed for the banking API
+// Performance & Security
 app.use(helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" },
     crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }
 }))
-
-// Request correlation
+app.use(compression()) // Compress all responses
 app.use(requestIdMiddleware)
 
 // Standardize Logging with Morgan
@@ -84,6 +90,9 @@ app.get("/api/health", async (req, res) => {
     }
 });
 
+// Apply global API rate limit
+app.use("/api", apiRateLimiter)
+
 // Routes
 app.use("/api/auth", authRouter)
 app.use("/api/account", accountRouter)
@@ -93,6 +102,11 @@ app.use("/api/beneficiaries", beneficiaryRouter)
 app.use("/api/scheduled-transfers", scheduledTransferRouter)
 app.use("/api/notifications", notificationRouter)
 app.use("/api/admin", adminRouter)
+app.use("/api/exchange", exchangeRouter)
+app.use("/api/virtual-cards", virtualCardRouter)
+app.use("/api/payment-requests", paymentRequestRouter)
+app.use("/api/analytics", analyticsRouter)
+app.use("/api/vaults", vaultRouter)
 
 // 404 Handler
 app.use((req, res, next) => {

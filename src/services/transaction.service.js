@@ -3,6 +3,7 @@ const TransactionModel = require("../models/transaction.model");
 const LedgerModel = require("../models/ledger.model");
 const AccountModel = require("../models/account.model");
 const PushService = require("./push.service");
+const VaultModel = require("../models/vault.model");
 
 const TransactionService = {
     /**
@@ -70,7 +71,40 @@ const TransactionService = {
             // D. Complete transaction
             const finalTransaction = await TransactionModel.updateStatus(transaction.id, 'completed');
             
-            // E. Send Push Notification to recipient (non-blocking)
+            // E. Handle Round-up (Premium Feature)
+            try {
+                const amountNum = parseFloat(amount);
+                const nextWhole = Math.ceil(amountNum);
+                const roundUp = nextWhole - amountNum;
+
+                if (roundUp > 0 && roundUp < 1) {
+                    const senderAccount = await AccountModel.findById(fromAccountId);
+                    if (senderAccount) {
+                        const vaults = await VaultModel.findByUserId(senderAccount.user_id);
+                        const targetVault = vaults.find(v => v.name.toLowerCase().includes('general') || v.name.toLowerCase().includes('savings')) || vaults[0];
+
+                        if (targetVault && parseFloat(senderAccount.balance) >= roundUp) {
+                            // Execute round-up
+                            await AccountModel.updateBalance(fromAccountId, -roundUp);
+                            await VaultModel.updateBalance(targetVault.id, roundUp);
+                            
+                            // Log the round-up in ledger
+                            await LedgerModel.create({
+                                accountId: fromAccountId,
+                                transactionId: transaction.id,
+                                amount: roundUp,
+                                type: "debit",
+                                balance: parseFloat(senderAccount.balance) - roundUp,
+                                description: `Round-up contribution to ${targetVault.name}`
+                            });
+                        }
+                    }
+                }
+            } catch (roundUpError) {
+                console.error("Round-up check failed:", roundUpError);
+            }
+
+            // F. Send Push Notification to recipient (non-blocking)
             try {
                 // We need to resolve the toAccountId to a userId
                 const targetAccount = await AccountModel.findById(toAccountId);
@@ -89,6 +123,93 @@ const TransactionService = {
             return finalTransaction;
         } catch (error) {
             console.error("TransactionService Error:", error.message);
+            throw error;
+        }
+    },
+
+    /**
+     * executeExchange - Handles currency conversion between two accounts owned by the same user
+     */
+    async executeExchange({ userId, fromAccountId, toAccountId, sourceAmount, targetAmount, exchangeRate, fromCurrency, toCurrency }) {
+        try {
+            // A. Create transaction record with extra exchange metadata
+            const transaction = await sql`
+                INSERT INTO transactions (
+                    from_account_id, 
+                    to_account_id, 
+                    amount, 
+                    type, 
+                    status,
+                    exchange_rate,
+                    source_amount,
+                    target_amount
+                ) VALUES (
+                    ${fromAccountId}, 
+                    ${toAccountId}, 
+                    ${targetAmount}, 
+                    'exchange', 
+                    'pending',
+                    ${exchangeRate},
+                    ${sourceAmount},
+                    ${targetAmount}
+                ) RETURNING *
+            `;
+
+            const tx = transaction[0];
+
+            // B. Update Source Account (Deduct)
+            const updatedFrom = await sql`
+                UPDATE accounts 
+                SET balance = balance - ${sourceAmount}, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ${fromAccountId} AND user_id = ${userId} AND balance >= ${sourceAmount} AND status = 'active'
+                RETURNING balance
+            `;
+
+            if (updatedFrom.length === 0) {
+                await sql`UPDATE transactions SET status = 'failed' WHERE id = ${tx.id}`;
+                throw new Error("Insufficient balance in source account or account not found");
+            }
+
+            // C. Update Target Account (Add)
+            const updatedTo = await sql`
+                UPDATE accounts 
+                SET balance = balance + ${targetAmount}, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ${toAccountId} AND user_id = ${userId} AND status = 'active'
+                RETURNING balance
+            `;
+
+            if (updatedTo.length === 0) {
+                // Rollback source deduction
+                await sql`UPDATE accounts SET balance = balance + ${sourceAmount} WHERE id = ${fromAccountId}`;
+                await sql`UPDATE transactions SET status = 'failed' WHERE id = ${tx.id}`;
+                throw new Error("Target account update failed or account not found");
+            }
+
+            // D. Create Ledger entries
+            await LedgerModel.create({
+                accountId: fromAccountId,
+                transactionId: tx.id,
+                amount: sourceAmount,
+                type: "debit",
+                balance: updatedFrom[0].balance,
+                description: `Currency Exchange: ${sourceAmount} ${fromCurrency} to ${targetAmount} ${toCurrency}`
+            });
+
+            await LedgerModel.create({
+                accountId: toAccountId,
+                transactionId: tx.id,
+                amount: targetAmount,
+                type: "credit",
+                balance: updatedTo[0].balance,
+                description: `Currency Exchange: Received ${targetAmount} ${toCurrency} from ${fromCurrency} wallet`
+            });
+
+            // E. Complete transaction
+            const [finalTx] = await sql`UPDATE transactions SET status = 'completed' WHERE id = ${tx.id} RETURNING *`;
+            
+            return finalTx;
+        } catch (error) {
+            console.error("Exchange Execution Error:", error.message);
             throw error;
         }
     }

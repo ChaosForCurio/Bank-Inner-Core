@@ -4,11 +4,11 @@ const TransactionModel = {
     /**
      * create - Create a new transaction
      */
-    async create({ fromAccount, toAccount, amount, type, idempotencyKey, status = 'pending' }) {
+    async create({ fromAccount, toAccount, amount, type, idempotencyKey, status = 'pending', category = 'Other' }) {
         try {
             const transactions = await sql`
-                INSERT INTO transactions (from_account, to_account, amount, type, idempotency_key, status)
-                VALUES (${fromAccount}, ${toAccount}, ${amount}, ${type}, ${idempotencyKey}, ${status})
+                INSERT INTO transactions (from_account, to_account, amount, type, idempotency_key, status, category)
+                VALUES (${fromAccount}, ${toAccount}, ${amount}, ${type}, ${idempotencyKey}, ${status}, ${category})
                 RETURNING *
             `;
             return transactions[0];

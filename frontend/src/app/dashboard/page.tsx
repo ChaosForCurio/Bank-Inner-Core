@@ -12,8 +12,13 @@ import {
     History,
     Settings,
     ShieldCheck,
-    ArrowRightLeft
+    ArrowRightLeft,
+    TrendingDown as TrendingUpIcon
 } from "lucide-react"
+import { usePrivacy } from "@/context/privacy-context"
+import { PrivacyToggle } from "@/components/dashboard/privacy-toggle"
+import { WealthOverview } from "@/components/dashboard/wealth-overview"
+import { SavingsVaults } from "@/components/dashboard/savings-vaults"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { api, endpoints } from "@/lib/api"
 import { cn } from "@/lib/utils"
@@ -27,6 +32,7 @@ export default function Dashboard({ user: initialUser }: { user?: any }) {
     const [accounts, setAccounts] = useState<any[]>([])
     const [transactions, setTransactions] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
+    const { isPrivate } = usePrivacy()
 
     useEffect(() => {
         const fetchData = async () => {
@@ -79,6 +85,7 @@ export default function Dashboard({ user: initialUser }: { user?: any }) {
     const quickActions = [
         { icon: <ArrowRightLeft className="w-5 h-5" />, label: "Transfer", href: "/dashboard/transfer", color: "text-blue-400" },
         { icon: <History className="w-5 h-5" />, label: "History", href: "/dashboard/history", color: "text-purple-400" },
+        { icon: <CreditCard className="w-5 h-5" />, label: "Cards", href: "/dashboard/cards", color: "text-pink-400" },
         { icon: <ShieldCheck className="w-5 h-5" />, label: "Security", href: "/dashboard/security", color: "text-emerald-400" },
         { icon: <Settings className="w-5 h-5" />, label: "Settings", href: "/dashboard/settings", color: "text-orange-400" },
     ]
@@ -94,15 +101,18 @@ export default function Dashboard({ user: initialUser }: { user?: any }) {
                     <p className="text-white/50 mt-2 font-medium">Your financial ecosystem is performing optimally.</p>
                 </motion.div>
                 
-                <Link href="/dashboard/transfer">
-                    <Button 
-                        size="lg" 
-                        leftIcon={<Plus className="w-5 h-5" />}
-                        className="w-full md:w-auto px-8"
-                    >
-                        New Transaction
-                    </Button>
-                </Link>
+                <div className="flex flex-col md:flex-row gap-4 items-center">
+                    <PrivacyToggle />
+                    <Link href="/dashboard/transfer" className="w-full md:w-auto">
+                        <Button 
+                            size="lg" 
+                            leftIcon={<Plus className="w-5 h-5" />}
+                            className="w-full px-8"
+                        >
+                            New Transaction
+                        </Button>
+                    </Link>
+                </div>
             </header>
 
             {/* Main Balance Card */}
@@ -124,7 +134,10 @@ export default function Dashboard({ user: initialUser }: { user?: any }) {
                         <div className="flex justify-between items-start">
                             <div className="space-y-1">
                                 <span className="text-xs font-bold uppercase tracking-[0.2em] text-white/40">Total Liquidity</span>
-                                <h2 className="text-4xl md:text-6xl font-black font-outfit tracking-tighter bg-gradient-to-b from-white to-white/60 bg-clip-text text-transparent">
+                                <h2 className={cn(
+                                    "text-4xl md:text-6xl font-black font-outfit tracking-tighter bg-gradient-to-b from-white to-white/60 bg-clip-text text-transparent transition-all duration-500",
+                                    isPrivate && "blur-xl select-none"
+                                )}>
                                     {formatCurrency(balance)}
                                 </h2>
                             </div>
@@ -157,8 +170,14 @@ export default function Dashboard({ user: initialUser }: { user?: any }) {
                 </GlassCard>
             </motion.div>
 
+            {/* Wealth Overlay (Charts) */}
+            <WealthOverview />
+
+            {/* Savings Vaults */}
+            <SavingsVaults />
+
             {/* Quick Actions Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-3 md:grid-cols-5 gap-4">
                 {quickActions.map((action, i) => (
                     <Link key={i} href={action.href}>
                         <GlassCard 
@@ -178,7 +197,7 @@ export default function Dashboard({ user: initialUser }: { user?: any }) {
             <div className="space-y-6">
                 <div className="flex items-center justify-between px-2">
                     <div className="flex items-center gap-3">
-                        <TrendingUp className="w-5 h-5 text-emerald-400" />
+                        <TrendingUpIcon className="w-5 h-5 text-emerald-400" />
                         <h2 className="text-2xl font-black font-outfit tracking-tight">Recent Activity</h2>
                     </div>
                     <Link href="/dashboard/history">
@@ -219,8 +238,9 @@ export default function Dashboard({ user: initialUser }: { user?: any }) {
                                     </div>
                                     <div className="text-right flex flex-col items-end gap-1">
                                         <p className={cn(
-                                            "font-black font-outfit text-lg",
-                                            tx.type === "credit" ? "text-emerald-400" : "text-white"
+                                            "font-black font-outfit text-lg transition-all duration-500",
+                                            tx.type === "credit" ? "text-emerald-400" : "text-white",
+                                            isPrivate && "blur-md select-none"
                                         )}>
                                             {tx.type === "credit" ? "+" : "-"}{formatCurrency(tx.amount)}
                                         </p>

@@ -14,7 +14,7 @@ const getWebAuthnConfig = (req) => {
     const manualRpID = process.env.RP_ID;
     const manualOrigin = process.env.ORIGIN;
 
-    // 2. Identify incoming request's origin
+    // 2. Identify incoming request's origin and hostname
     const reqOrigin = req.headers.origin 
         || (req.headers.referer ? new URL(req.headers.referer).origin : null);
 
@@ -23,19 +23,29 @@ const getWebAuthnConfig = (req) => {
             const url = new URL(reqOrigin);
             const hostname = url.hostname;
 
-            // If it's a Vercel preview or branch deployment, use its domain as the RP ID
+            /**
+             * Vercel Branch/Preview Support:
+             * On Vercel, every deployment has a unique subdomain. The browser requires that the 
+             * RP ID exactly matches the hostname (or is a valid suffix).
+             * We MUST use the dynamic hostname for Vercel subdomains, even if a manual RP_ID is set,
+             * otherwise passkey registration/login will fail in the browser.
+             */
             if (hostname.endsWith('.vercel.app')) {
                 return { 
-                    rpID: manualRpID || hostname, 
-                    origin: manualOrigin || reqOrigin 
+                    rpID: hostname, // Ignore manual RP_ID for dynamic Vercel previews
+                    origin: reqOrigin 
                 };
             }
         } catch (e) {
-            // Fallback
+            // Fallback to manual config on URL parse error
         }
     }
 
-    // 3. Final Fallback (Production or Localhost)
+    /**
+     * Final Fallback (Production Custom Domain or Localhost)
+     * If no origin header is found (e.g. from an API tool) or it's not a Vercel preview,
+     * use the manual environment variable or default to localhost.
+     */
     const rpID = manualRpID || "localhost";
     const origin = manualOrigin || (rpID === "localhost" ? "http://localhost:3000" : `https://${rpID}`);
     

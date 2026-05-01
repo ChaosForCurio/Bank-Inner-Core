@@ -28,7 +28,7 @@ const NotificationController = {
             }
 
             return res.status(200).json({
-                status: "success",
+                success: true,
                 notifications
             });
         } catch (error) {
@@ -60,7 +60,7 @@ const NotificationController = {
             }
 
             return res.status(200).json({
-                status: "success",
+                success: true,
                 message: "Notification(s) updated"
             });
         } catch (error) {
@@ -88,7 +88,7 @@ const NotificationController = {
      */
     async getVapidPublicKey(req, res) {
         return res.status(200).json({
-            status: "success",
+            success: true,
             publicKey: process.env.VAPID_PUBLIC_KEY
         });
     },
@@ -114,7 +114,7 @@ const NotificationController = {
             });
 
             return res.status(201).json({
-                status: "success",
+                success: true,
                 message: "Subscription saved successfully"
             });
         } catch (error) {
