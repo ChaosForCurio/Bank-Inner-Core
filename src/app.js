@@ -4,6 +4,8 @@ const cors = require("cors")
 const helmet = require("helmet")
 const morgan = require("morgan")
 const compression = require("compression")
+const Sentry = require("@sentry/node")
+const { nodeProfilingIntegration } = require("@sentry/profiling-node")
 const requestIdMiddleware = require("./middleware/request-id.middleware")
 const env = require("./config/env.config")
 const authRouter = require("./routes/auth.route")
@@ -19,10 +21,31 @@ const virtualCardRouter = require("./routes/virtualCard.routes")
 const paymentRequestRouter = require("./routes/paymentRequest.routes")
 const analyticsRouter = require("./routes/analytics.routes")
 const vaultRouter = require("./routes/vault.routes")
+const externalAccountRouter = require("./routes/externalAccount.routes")
 const { apiRateLimiter } = require("./middleware/rate-limit.middleware")
 const { sql } = require("./db")
 
 const app = express()
+
+// Initialize Sentry before any other middleware
+if (env.SENTRY_DSN) {
+    Sentry.init({
+        dsn: env.SENTRY_DSN,
+        integrations: [
+            nodeProfilingIntegration(),
+        ],
+        // Performance Monitoring
+        tracesSampleRate: 1.0, //  Capture 100% of the transactions
+        // Set sampling rate for profiling - this is relative to tracesSampleRate
+        profilesSampleRate: 1.0,
+        environment: env.NODE_ENV
+    });
+    
+    // The request handler must be the first middleware on the app
+    app.use(Sentry.Handlers.requestHandler());
+    // TracingHandler creates a trace for every incoming request
+    app.use(Sentry.Handlers.tracingHandler());
+}
 
 // Performance & Security
 app.use(helmet({
@@ -107,6 +130,7 @@ app.use("/api/virtual-cards", virtualCardRouter)
 app.use("/api/payment-requests", paymentRequestRouter)
 app.use("/api/analytics", analyticsRouter)
 app.use("/api/vaults", vaultRouter)
+app.use("/api/external-accounts", externalAccountRouter)
 
 // 404 Handler
 app.use((req, res, next) => {
@@ -116,6 +140,11 @@ app.use((req, res, next) => {
 });
 
 // Global Error Handler
+if (env.SENTRY_DSN) {
+    // The error handler must be before any other error middleware and after all controllers
+    app.use(Sentry.Handlers.errorHandler());
+}
+
 app.use((err, req, res, next) => {
     const requestId = req.id || "unknown";
     console.error(`[${new Date().toISOString()}] [RequestID: ${requestId}] Error: ${req.method} ${req.originalUrl}`, err);

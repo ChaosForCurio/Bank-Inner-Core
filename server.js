@@ -20,7 +20,13 @@ async function startWorker() {
         const SchedulerService = require("./src/services/scheduler.service");
         SchedulerService.start();
 
-        app.listen(PORT, "0.0.0.0", () => {
+        const SocketService = require("./src/services/socket.service");
+        const http = require("http");
+        const server = http.createServer(app);
+        
+        SocketService.init(server);
+
+        server.listen(PORT, "0.0.0.0", () => {
             console.log(`Worker ${process.pid} started. Server running on http://0.0.0.0:${PORT}`)
         })
     } catch (error) {

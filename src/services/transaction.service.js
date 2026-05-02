@@ -4,6 +4,7 @@ const LedgerModel = require("../models/ledger.model");
 const AccountModel = require("../models/account.model");
 const PushService = require("./push.service");
 const VaultModel = require("../models/vault.model");
+const SocketService = require("./socket.service");
 
 const TransactionService = {
     /**
@@ -120,6 +121,31 @@ const TransactionService = {
                 console.error("Error setting up recipient notification:", notifyError);
             }
 
+            // G. Real-time Socket Updates
+            try {
+                // Sender update
+                const senderAccount = await AccountModel.findById(fromAccountId);
+                if (senderAccount) {
+                    SocketService.emitToUser(senderAccount.user_id, 'balance_update', {
+                        accountId: fromAccountId,
+                        balance: updatedFrom[0].balance
+                    });
+                    SocketService.emitToUser(senderAccount.user_id, 'new_transaction', finalTransaction);
+                }
+
+                // Recipient update
+                const recipientAccount = await AccountModel.findById(toAccountId);
+                if (recipientAccount) {
+                    SocketService.emitToUser(recipientAccount.user_id, 'balance_update', {
+                        accountId: toAccountId,
+                        balance: updatedTo[0].balance
+                    });
+                    SocketService.emitToUser(recipientAccount.user_id, 'new_transaction', finalTransaction);
+                }
+            } catch (socketError) {
+                console.error("Socket dispatch error:", socketError);
+            }
+
             return finalTransaction;
         } catch (error) {
             console.error("TransactionService Error:", error.message);
@@ -207,6 +233,21 @@ const TransactionService = {
             // E. Complete transaction
             const [finalTx] = await sql`UPDATE transactions SET status = 'completed' WHERE id = ${tx.id} RETURNING *`;
             
+            // F. Real-time Socket Updates
+            try {
+                SocketService.emitToUser(userId, 'balance_update', {
+                    accountId: fromAccountId,
+                    balance: updatedFrom[0].balance
+                });
+                SocketService.emitToUser(userId, 'balance_update', {
+                    accountId: toAccountId,
+                    balance: updatedTo[0].balance
+                });
+                SocketService.emitToUser(userId, 'new_transaction', finalTx);
+            } catch (socketError) {
+                console.error("Socket dispatch error:", socketError);
+            }
+
             return finalTx;
         } catch (error) {
             console.error("Exchange Execution Error:", error.message);

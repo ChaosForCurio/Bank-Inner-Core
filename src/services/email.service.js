@@ -69,9 +69,36 @@ async function sendLoginEmail(email, name) {
     }
 }
 
+async function sendSecurityAlertEmail(email, name, deviceStr, locationStr, ipAddress) {
+    try {
+        const time = new Date().toLocaleString();
+        const data = await mg.messages.create(MAILGUN_DOMAIN, {
+            from: SENDER_EMAIL,
+            to: [email],
+            subject: 'Security Alert: New Login Detected',
+            html: `
+                <p>Hello ${name},</p>
+                <p>We noticed a new login to your Bank Inner Core account from an unrecognized device or location.</p>
+                <ul>
+                    <li><strong>Device:</strong> ${deviceStr || 'Unknown Device'}</li>
+                    <li><strong>Location:</strong> ${locationStr || 'Unknown Location'}</li>
+                    <li><strong>IP Address:</strong> ${ipAddress}</li>
+                    <li><strong>Time:</strong> ${time}</li>
+                </ul>
+                <p>If this was you, you can safely ignore this email.</p>
+                <p>If you do not recognize this activity, please contact support immediately and change your password.</p>
+            `,
+        });
+        console.log('Security alert email sent successfully:', data);
+    } catch (err) {
+        console.error('Error sending security alert email:', err);
+    }
+}
+
 module.exports = {
     sendWelcomeEmail,
     sendLoginEmail,
     sendTransactionEmail,
-    sendTransactionFailEmail
+    sendTransactionFailEmail,
+    sendSecurityAlertEmail
 };

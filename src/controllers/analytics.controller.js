@@ -1,4 +1,4 @@
-const { sql } = require("../db");
+const { sql, readSql } = require("../db");
 const AccountModel = require("../models/account.model");
 
 /**
@@ -19,7 +19,7 @@ async function getSpendingByCategory(req, res) {
 
         // 2. Aggregate transactions where this user is the sender
         // We consider 'debits' or transfers FROM the user's account
-        const spending = await sql`
+        const spending = await readSql`
             SELECT 
                 category, 
                 SUM(amount) as total_amount,
@@ -60,7 +60,7 @@ async function getBalanceHistory(req, res) {
 
         // 2. Fetch ledger entries to construct a time-series balance
         // Simplified: take the latest ledger entry per day for each account and sum them
-        const history = await sql`
+        const history = await readSql`
             WITH daily_balances AS (
                 SELECT 
                     DATE(created_at) as date,

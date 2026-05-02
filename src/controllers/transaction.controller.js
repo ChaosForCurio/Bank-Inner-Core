@@ -2,7 +2,7 @@ const TransactionModel = require("../models/transaction.model")
 const LedgerModel = require("../models/ledger.model")
 const AccountModel = require("../models/account.model")
 const emailService = require("../services/email.service")
-const { sql } = require("../db");
+const { sql, readSql } = require("../db");
 
 /**
  * createTransaction - Standard user-to-user transfer
@@ -196,7 +196,7 @@ async function getTransactionHistory(req, res) {
         // 2. Fetch history from Ledgers (since it handles credits/debits per account)
         // We'll join with transactions to get more details if needed, 
         // but for now, the ledger entries have the main info.
-        const history = await sql`
+        const history = await readSql`
             SELECT 
                 l.*, 
                 t.type as transaction_type,
@@ -229,7 +229,7 @@ async function getTransactionById(req, res) {
         const userId = req.user.id;
 
         // 1. Fetch transaction
-        const transaction = await sql`
+        const transaction = await readSql`
             SELECT * FROM transactions WHERE id = ${id}
         `;
 
@@ -246,7 +246,7 @@ async function getTransactionById(req, res) {
         }
 
         // 3. Get ledger entries for context
-        const ledgers = await sql`
+        const ledgers = await readSql`
             SELECT * FROM ledgers WHERE transaction_id = ${id}
         `;
 

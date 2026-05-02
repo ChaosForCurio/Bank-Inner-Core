@@ -1,14 +1,16 @@
 const { z } = require("zod");
 const zxcvbn = require("zxcvbn");
 const UAParser = require("ua-parser-js");
+const geoip = require("geoip-lite");
 const { sql } = require("../db");
 const UserModel = require("../models/user.model");
 const AccountModel = require("../models/account.model");
 const SessionModel = require("../models/session.model");
 const AuditModel = require("../models/audit.model");
 const PasswordHistoryModel = require("../models/password_history.model");
+const LoginHistoryModel = require("../models/loginHistory.model");
 const { generateAccessToken, generateRefreshToken, verifyRefreshToken, verifyResetToken } = require("../utils/token.util");
-const { sendWelcomeEmail, sendLoginEmail } = require("../services/email.service");
+const { sendWelcomeEmail, sendLoginEmail, sendSecurityAlertEmail } = require("../services/email.service");
 
 // Validation Schemas
 const registerSchema = z.object({
@@ -137,6 +139,53 @@ async function userLoginController(req, res) {
         await UserModel.resetFailedLogin(user.id);
         await UserModel.updateLastLogin(user.id);
 
+        // --- Location & Device Fingerprinting ---
+        let ipAddress = req.ip || req.connection.remoteAddress;
+        
+        // Handle local IP addresses mapping for geoip-lite
+        let city = "Local Environment";
+        let country = "Local";
+        
+        if (ipAddress !== '127.0.0.1' && ipAddress !== '::1' && ipAddress !== '::ffff:127.0.0.1') {
+            const geo = geoip.lookup(ipAddress);
+            if (geo) {
+                city = geo.city || "Unknown City";
+                country = geo.country || "Unknown Country";
+            } else {
+                city = "Unknown City";
+                country = "Unknown Country";
+            }
+        } else {
+            ipAddress = "127.0.0.1"; // standardize local IP
+        }
+
+        const locationStr = `${city}, ${country}`;
+
+        // Get recent logins to compare
+        const recentLogins = await LoginHistoryModel.getRecentLogins(user.id, 5);
+        
+        // Save this login
+        await LoginHistoryModel.create({
+            userId: user.id,
+            ipAddress,
+            deviceString: deviceStr,
+            city,
+            country
+        });
+
+        // Check if device or location is new
+        const isNewDeviceOrLocation = recentLogins.length > 0 && !recentLogins.some(
+            login => login.device_string === deviceStr && login.city === city && login.country === country
+        );
+
+        if (isNewDeviceOrLocation) {
+            sendSecurityAlertEmail(user.email, user.name, deviceStr, locationStr, ipAddress).catch(console.error);
+        } else {
+            // Regular login email if not new device/location
+            sendLoginEmail(user.email, user.name).catch(console.error);
+        }
+        // ------------------------------------------
+
         const accessToken = generateAccessToken(user);
         const refreshToken = generateRefreshToken(user); // Initial session, no sessionId yet
         
@@ -157,8 +206,6 @@ async function userLoginController(req, res) {
 
         res.cookie("token", accessToken, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax" });
         res.cookie("refreshToken", linkedRefreshToken, { httpOnly: true, secure: process.env.NODE_ENV === "production", path: "/api/auth/refresh", sameSite: "lax" });
-
-        sendLoginEmail(user.email, user.name).catch(console.error);
 
         return res.status(200).json({
             status: "success",

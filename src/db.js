@@ -5,12 +5,17 @@ if (!process.env.DATABASE_URL) {
 }
 
 const sql = neon(process.env.DATABASE_URL)
+const readSql = process.env.DATABASE_READ_URL ? neon(process.env.DATABASE_READ_URL) : sql
 
 async function verifyConnection(retries = 3) {
     for (let i = 0; i < retries; i++) {
         try {
             console.log(`Verifying Neon connection (Attempt ${i + 1}/${retries})...`)
             await sql`SELECT 1`
+            if (process.env.DATABASE_READ_URL) {
+                await readSql`SELECT 1`
+                console.log("Read-replica connected successfully")
+            }
             console.log("Database connected successfully")
             return
         } catch (error) {
@@ -26,4 +31,4 @@ async function verifyConnection(retries = 3) {
     }
 }
 
-module.exports = { sql, verifyConnection }
+module.exports = { sql, readSql, verifyConnection }

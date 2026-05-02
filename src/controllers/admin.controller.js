@@ -1,4 +1,4 @@
-const { sql } = require("../db");
+const { sql, readSql } = require("../db");
 
 const AdminController = {
     /**
@@ -6,7 +6,7 @@ const AdminController = {
      */
     async getDashboardStats(req, res) {
         try {
-            const stats = await sql`
+            const stats = await readSql`
                 SELECT 
                     (SELECT COUNT(*) FROM users) as total_users,
                     (SELECT SUM(balance) FROM accounts) as total_assets,
@@ -29,7 +29,7 @@ const AdminController = {
      */
     async getAllUsers(req, res) {
         try {
-            const users = await sql`
+            const users = await readSql`
                 SELECT u.id, u.uuid, u.email, u.name, u.status, u.role, u.created_at,
                        json_agg(a.*) as accounts
                 FROM users u
@@ -54,7 +54,7 @@ const AdminController = {
     async getGlobalHistory(req, res) {
         const { limit = 50, offset = 0 } = req.query;
         try {
-            const transactions = await sql`
+            const transactions = await readSql`
                 SELECT t.*, 
                        uf.name as from_user_name, 
                        ut.name as to_user_name
