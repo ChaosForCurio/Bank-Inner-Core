@@ -28,6 +28,13 @@ function LoginForm() {
         setLoading(true)
         try {
             const { data } = await api.post(endpoints.auth.login, formData)
+            
+            if (data.status === "pending_mfa") {
+                toast.success("MFA Required. Please verify your identity.")
+                router.push(`/verify-otp?email=${encodeURIComponent(formData.email)}`)
+                return
+            }
+
             // Persist token for 7 days so the user stays logged in across browser restarts
             setCookie("token", data.accessToken, { maxAge: 60 * 60 * 24 * 7 })
             toast.success("Welcome back!")

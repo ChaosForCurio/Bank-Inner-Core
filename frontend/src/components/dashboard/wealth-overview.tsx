@@ -17,6 +17,11 @@ export function WealthOverview() {
     const [spendingData, setSpendingData] = useState<any[]>([])
     const [historyData, setHistoryData] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
+    const [mounted, setMounted] = useState(false)
+
+    useEffect(() => {
+        setMounted(true)
+    }, [])
 
     useEffect(() => {
         const fetchAnalytics = async () => {
@@ -58,33 +63,35 @@ export function WealthOverview() {
                     </div>
 
                     <div className="h-[280px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                                <Pie
-                                    data={spendingData}
-                                    cx="50%"
-                                    cy="50%"
-                                    innerRadius={60}
-                                    outerRadius={80}
-                                    paddingAngle={5}
-                                    dataKey="total_amount"
-                                    nameKey="category"
-                                >
-                                    {spendingData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                    ))}
-                                </Pie>
-                                <RechartsTooltip 
-                                    contentStyle={{ 
-                                        background: 'rgba(0,0,0,0.8)', 
-                                        border: '1px solid rgba(255,255,255,0.1)',
-                                        borderRadius: '12px',
-                                        backdropFilter: 'blur(10px)'
-                                    }}
-                                    formatter={(value: any) => formatCurrency(value)}
-                                />
-                            </PieChart>
-                        </ResponsiveContainer>
+                        {mounted && (
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie
+                                        data={spendingData}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={60}
+                                        outerRadius={80}
+                                        paddingAngle={5}
+                                        dataKey="total_amount"
+                                        nameKey="category"
+                                    >
+                                        {spendingData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                        ))}
+                                    </Pie>
+                                    <RechartsTooltip 
+                                        contentStyle={{ 
+                                            background: 'rgba(0,0,0,0.8)', 
+                                            border: '1px solid rgba(255,255,255,0.1)',
+                                            borderRadius: '12px',
+                                            backdropFilter: 'blur(10px)'
+                                        }}
+                                        formatter={(value: any) => formatCurrency(value)}
+                                    />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        )}
                     </div>
                     
                     <div className="flex flex-wrap justify-center gap-4 mt-2">
@@ -119,36 +126,38 @@ export function WealthOverview() {
                     </div>
 
                     <div className="h-[280px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={historyData}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                                <XAxis 
-                                    dataKey="date" 
-                                    axisLine={false} 
-                                    tickLine={false} 
-                                    tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10 }}
-                                    dy={10}
-                                />
-                                <YAxis hide />
-                                <RechartsTooltip 
-                                    contentStyle={{ 
-                                        background: 'rgba(0,0,0,0.8)', 
-                                        border: '1px solid rgba(255,255,255,0.1)',
-                                        borderRadius: '12px',
-                                        backdropFilter: 'blur(10px)'
-                                    }}
-                                    formatter={(value: any) => formatCurrency(value)}
-                                />
-                                <Line 
-                                    type="monotone" 
-                                    dataKey="total_balance" 
-                                    stroke="#34d399" 
-                                    strokeWidth={4}
-                                    dot={false}
-                                    activeDot={{ r: 6, fill: '#34d399', stroke: '#fff', strokeWidth: 2 }}
-                                />
-                            </LineChart>
-                        </ResponsiveContainer>
+                        {mounted && (
+                            <ResponsiveContainer width="100%" height="100%">
+                                <LineChart data={historyData}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                                    <XAxis 
+                                        dataKey="date" 
+                                        axisLine={false} 
+                                        tickLine={false} 
+                                        tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10 }}
+                                        dy={10}
+                                    />
+                                    <YAxis hide />
+                                    <RechartsTooltip 
+                                        contentStyle={{ 
+                                            background: 'rgba(0,0,0,0.8)', 
+                                            border: '1px solid rgba(255,255,255,0.1)',
+                                            borderRadius: '12px',
+                                            backdropFilter: 'blur(10px)'
+                                        }}
+                                        formatter={(value: any) => formatCurrency(value)}
+                                    />
+                                    <Line 
+                                        type="monotone" 
+                                        dataKey="total_balance" 
+                                        stroke="#34d399" 
+                                        strokeWidth={4}
+                                        dot={false}
+                                        activeDot={{ r: 6, fill: '#34d399', stroke: '#fff', strokeWidth: 2 }}
+                                    />
+                                </LineChart>
+                            </ResponsiveContainer>
+                        )}
                     </div>
                 </GlassCard>
             </motion.div>

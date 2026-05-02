@@ -11,8 +11,8 @@ self.addEventListener("push", (event) => {
     const title = data.title || "Bank Inner Core";
     const options = {
         body: data.body || "New notification",
-        icon: data.icon || "/icons/icon-192x192.png", // Assuming PWA icons exist
-        badge: "/icons/icon-192x192.png",
+        icon: data.icon || "/favicon.svg",
+        badge: "/favicon.svg",
         data: {
             url: data.url || "/"
         }

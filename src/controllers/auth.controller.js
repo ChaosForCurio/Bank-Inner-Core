@@ -9,8 +9,10 @@ const SessionModel = require("../models/session.model");
 const AuditModel = require("../models/audit.model");
 const PasswordHistoryModel = require("../models/password_history.model");
 const LoginHistoryModel = require("../models/loginHistory.model");
+const UserOtpModel = require("../models/userOtp.model");
 const { generateAccessToken, generateRefreshToken, verifyRefreshToken, verifyResetToken } = require("../utils/token.util");
 const { sendWelcomeEmail, sendLoginEmail, sendSecurityAlertEmail } = require("../services/email.service");
+const { sendOTP } = require("../services/sms.service");
 
 // Validation Schemas
 const registerSchema = z.object({
@@ -22,6 +24,15 @@ const registerSchema = z.object({
 const loginSchema = z.object({
     email: z.string().email(),
     password: z.string()
+});
+
+const verifyOtpSchema = z.object({
+    userId: z.number(),
+    otpCode: z.string().length(6)
+});
+
+const enableMfaSchema = z.object({
+    phoneNumber: z.string().min(10)
 });
 
 /**
@@ -98,7 +109,7 @@ async function userRegisterController(req, res) {
 }
 
 /**
- * login - Authenticate user and create session
+ * login - Authenticate user and create session or request MFA
  */
 async function userLoginController(req, res) {
     const parser = new UAParser(req.headers['user-agent']);
@@ -135,88 +146,177 @@ async function userLoginController(req, res) {
             return res.status(401).json({ status: "failed", message: "Invalid email or password" });
         }
 
-        // Success
-        await UserModel.resetFailedLogin(user.id);
-        await UserModel.updateLastLogin(user.id);
-
-        // --- Location & Device Fingerprinting ---
-        let ipAddress = req.ip || req.connection.remoteAddress;
-        
-        // Handle local IP addresses mapping for geoip-lite
-        let city = "Local Environment";
-        let country = "Local";
-        
-        if (ipAddress !== '127.0.0.1' && ipAddress !== '::1' && ipAddress !== '::ffff:127.0.0.1') {
-            const geo = geoip.lookup(ipAddress);
-            if (geo) {
-                city = geo.city || "Unknown City";
-                country = geo.country || "Unknown Country";
-            } else {
-                city = "Unknown City";
-                country = "Unknown Country";
-            }
-        } else {
-            ipAddress = "127.0.0.1"; // standardize local IP
+        // Success - Check for MFA
+        if (user.mfa_enabled && user.phone_number) {
+            // Generate OTP
+            const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+            await UserOtpModel.create(user.id, otpCode);
+            
+            // Send SMS
+            await sendOTP(user.phone_number, otpCode);
+            
+            return res.status(200).json({
+                status: "pending_mfa",
+                message: "OTP sent to your registered phone number.",
+                userId: user.id
+            });
         }
 
-        const locationStr = `${city}, ${country}`;
-
-        // Get recent logins to compare
-        const recentLogins = await LoginHistoryModel.getRecentLogins(user.id, 5);
-        
-        // Save this login
-        await LoginHistoryModel.create({
-            userId: user.id,
-            ipAddress,
-            deviceString: deviceStr,
-            city,
-            country
-        });
-
-        // Check if device or location is new
-        const isNewDeviceOrLocation = recentLogins.length > 0 && !recentLogins.some(
-            login => login.device_string === deviceStr && login.city === city && login.country === country
-        );
-
-        if (isNewDeviceOrLocation) {
-            sendSecurityAlertEmail(user.email, user.name, deviceStr, locationStr, ipAddress).catch(console.error);
-        } else {
-            // Regular login email if not new device/location
-            sendLoginEmail(user.email, user.name).catch(console.error);
-        }
-        // ------------------------------------------
-
-        const accessToken = generateAccessToken(user);
-        const refreshToken = generateRefreshToken(user); // Initial session, no sessionId yet
-        
-        // Create DB session
-        const session = await SessionModel.create({
-            userId: user.id,
-            refreshToken,
-            ipAddress: req.ip,
-            userAgent: deviceStr,
-            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
-        });
-
-        // Regenerate refresh token with sessionId for rotation link
-        const linkedRefreshToken = generateRefreshToken(user, session.id);
-        await sql`UPDATE sessions SET refresh_token = ${linkedRefreshToken} WHERE id = ${session.id}`;
-
-        await AuditModel.create({ userId: user.id, action: 'login', status: 'success', ipAddress: req.ip, userAgent: deviceStr });
-
-        res.cookie("token", accessToken, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax" });
-        res.cookie("refreshToken", linkedRefreshToken, { httpOnly: true, secure: process.env.NODE_ENV === "production", path: "/api/auth/refresh", sameSite: "lax" });
-
-        return res.status(200).json({
-            status: "success",
-            message: "Logged in successfully",
-            user: { id: user.id, uuid: user.uuid, name: user.name, email: user.email, role: user.role },
-            accessToken
-        });
+        // No MFA required, proceed to complete login
+        return await completeLoginFlow(user, req, res, deviceStr);
 
     } catch (error) {
         console.error("Login Controller Error:", error);
         return res.status(500).json({ status: "failed", message: "Login failed" });
+    }
+}
+
+/**
+ * verifyOTP - Validate OTP and complete login
+ */
+async function verifyOTPController(req, res) {
+    const parser = new UAParser(req.headers['user-agent']);
+    const ua = parser.getResult();
+    const deviceStr = `${ua.browser.name || 'Unknown'} on ${ua.os.name || 'Unknown'} (${ua.device.type || 'desktop'})`;
+
+    try {
+        const validation = verifyOtpSchema.safeParse(req.body);
+        if (!validation.success) {
+            return res.status(400).json({ status: "failed", message: "Invalid input format" });
+        }
+
+        const { userId, otpCode } = validation.data;
+        
+        const validOtp = await UserOtpModel.findValid(userId, otpCode);
+        if (!validOtp) {
+            await AuditModel.create({ userId, action: 'mfa_verify', status: 'failure', ipAddress: req.ip, metadata: { reason: 'invalid_or_expired_otp' } });
+            return res.status(401).json({ status: "failed", message: "Invalid or expired OTP" });
+        }
+
+        // OTP valid, delete it and proceed
+        await UserOtpModel.deleteForUser(userId);
+        
+        const user = await UserModel.findById(userId);
+        if (!user) {
+            return res.status(401).json({ status: "failed", message: "User not found" });
+        }
+
+        return await completeLoginFlow(user, req, res, deviceStr);
+    } catch (error) {
+        console.error("Verify OTP Error:", error);
+        return res.status(500).json({ status: "failed", message: "OTP verification failed" });
+    }
+}
+
+/**
+ * Helper function to complete login (tokens, session, alerts)
+ */
+async function completeLoginFlow(user, req, res, deviceStr) {
+    await UserModel.resetFailedLogin(user.id);
+    await UserModel.updateLastLogin(user.id);
+
+    // --- Location & Device Fingerprinting ---
+    let ipAddress = req.ip || req.connection.remoteAddress;
+    
+    // Handle local IP addresses mapping for geoip-lite
+    let city = "Local Environment";
+    let country = "Local";
+    
+    if (ipAddress !== '127.0.0.1' && ipAddress !== '::1' && ipAddress !== '::ffff:127.0.0.1') {
+        const geo = geoip.lookup(ipAddress);
+        if (geo) {
+            city = geo.city || "Unknown City";
+            country = geo.country || "Unknown Country";
+        } else {
+            city = "Unknown City";
+            country = "Unknown Country";
+        }
+    } else {
+        ipAddress = "127.0.0.1"; // standardize local IP
+    }
+
+    const locationStr = `${city}, ${country}`;
+
+    // Get recent logins to compare
+    const recentLogins = await LoginHistoryModel.getRecentLogins(user.id, 5);
+    
+    // Save this login
+    await LoginHistoryModel.create({
+        userId: user.id,
+        ipAddress,
+        deviceString: deviceStr,
+        city,
+        country
+    });
+
+    // Check if device or location is new
+    const isNewDeviceOrLocation = recentLogins.length > 0 && !recentLogins.some(
+        login => login.device_string === deviceStr && login.city === city && login.country === country
+    );
+
+    if (isNewDeviceOrLocation) {
+        sendSecurityAlertEmail(user.email, user.name, deviceStr, locationStr, ipAddress).catch(console.error);
+    } else {
+        // Regular login email if not new device/location
+        sendLoginEmail(user.email, user.name).catch(console.error);
+    }
+    // ------------------------------------------
+
+    const accessToken = generateAccessToken(user);
+    const refreshToken = generateRefreshToken(user); // Initial session, no sessionId yet
+    
+    // Create DB session
+    const session = await SessionModel.create({
+        userId: user.id,
+        refreshToken,
+        ipAddress: req.ip,
+        userAgent: deviceStr,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+    });
+
+    // Regenerate refresh token with sessionId for rotation link
+    const linkedRefreshToken = generateRefreshToken(user, session.id);
+    await sql`UPDATE sessions SET refresh_token = ${linkedRefreshToken} WHERE id = ${session.id}`;
+
+    await AuditModel.create({ userId: user.id, action: 'login', status: 'success', ipAddress: req.ip, userAgent: deviceStr });
+
+    res.cookie("token", accessToken, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax" });
+    res.cookie("refreshToken", linkedRefreshToken, { httpOnly: true, secure: process.env.NODE_ENV === "production", path: "/api/auth/refresh", sameSite: "lax" });
+
+    return res.status(200).json({
+        status: "success",
+        message: "Logged in successfully",
+        user: { id: user.id, uuid: user.uuid, name: user.name, email: user.email, role: user.role, mfa_enabled: user.mfa_enabled },
+        accessToken
+    });
+}
+
+
+/**
+ * enableMfa - Allow an authenticated user to enable SMS MFA
+ */
+async function enableMfaController(req, res) {
+    try {
+        const validation = enableMfaSchema.safeParse(req.body);
+        if (!validation.success) {
+            return res.status(400).json({ status: "failed", message: "Invalid phone number format" });
+        }
+
+        const { phoneNumber } = validation.data;
+        const userId = req.user.id;
+
+        // Update user record
+        await sql`UPDATE users SET phone_number = ${phoneNumber}, mfa_enabled = true WHERE id = ${userId}`;
+        
+        await AuditModel.create({ userId, action: 'enable_mfa', status: 'success', ipAddress: req.ip });
+
+        return res.status(200).json({
+            status: "success",
+            message: "Two-Factor Authentication enabled successfully"
+        });
+    } catch (error) {
+        console.error("Enable MFA Error:", error);
+        return res.status(500).json({ status: "failed", message: "Failed to enable MFA" });
     }
 }
 
@@ -373,5 +473,7 @@ module.exports = {
     userLogoutController,
     refreshTokenController,
     logoutAllController,
-    resetPasswordController
+    resetPasswordController,
+    verifyOTPController,
+    enableMfaController
 };

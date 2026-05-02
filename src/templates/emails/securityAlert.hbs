@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f4f4; color: #333; margin: 0; padding: 20px; }
+        .container { background-color: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); max-width: 600px; margin: auto; border-top: 4px solid #e67e22; }
+        h1 { color: #e67e22; }
+        .details { background-color: #fdf2e9; padding: 15px; border-radius: 5px; margin: 20px 0; border: 1px solid #fae5d3; }
+        ul { list-style-type: none; padding: 0; }
+        li { margin-bottom: 10px; }
+        .footer { margin-top: 20px; font-size: 12px; color: #888; text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Security Alert: New Login Detected</h1>
+        <p>Hello {{name}},</p>
+        <p>We noticed a new login to your Bank Inner Core account from an unrecognized device or location.</p>
+        <div class="details">
+            <ul>
+                <li><strong>Device:</strong> {{deviceStr}}</li>
+                <li><strong>Location:</strong> {{locationStr}}</li>
+                <li><strong>IP Address:</strong> {{ipAddress}}</li>
+                <li><strong>Time:</strong> {{time}}</li>
+            </ul>
+        </div>
+        <p>If this was you, you can safely ignore this email.</p>
+        <p><strong>If you do not recognize this activity, please contact support immediately and change your password.</strong></p>
+        <div class="footer">
+            &copy; 2026 Bank Inner Core. All rights reserved.
+        </div>
+    </div>
+</body>
+</html>

@@ -38,7 +38,7 @@ api.interceptors.request.use((config) => {
 });
 
 // Routes that should NEVER trigger a silent token refresh (they are auth routes themselves)
-const AUTH_ROUTES = ["auth/login", "auth/register", "auth/refresh", "auth/reset-password", "auth/passkeys/login"];
+const AUTH_ROUTES = ["auth/login", "auth/register", "auth/refresh", "auth/reset-password", "auth/passkeys/login", "auth/verify-otp"];
 
 let isRefreshing = false;
 let refreshQueue: Array<(token: string | null) => void> = [];
@@ -120,6 +120,8 @@ export const endpoints = {
             verify: "auth/passkeys/login/verify",
         },
         resetPassword: "auth/reset-password",
+        verifyOtp: "auth/verify-otp",
+        enableMfa: "auth/enable-mfa",
     },
     accounts: {
         list: "account",

@@ -1,10 +1,10 @@
 const express = require("express");
 const router = express.Router();
 const ExternalAccountController = require("../controllers/externalAccount.controller");
-const { protect } = require("../middleware/auth.middleware");
+const { authMiddleware } = require("../middleware/auth.middleware");
 
 // All external account routes require authentication
-router.use(protect);
+router.use(authMiddleware);
 
 // Initialize Link
 router.post("/create-link-token", ExternalAccountController.createLinkToken);

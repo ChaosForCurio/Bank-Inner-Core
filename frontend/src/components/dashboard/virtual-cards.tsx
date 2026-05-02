@@ -73,7 +73,7 @@ export function VirtualCards() {
 
     const handleCancel = async (id: number) => {
         try {
-            await api.patch(`/api/virtual-cards/${id}/status`, { status: 'canceled' })
+            await api.patch(`virtual-cards/${id}/status`, { status: 'canceled' })
             toast.success("Card cancelled")
             fetchData()
         } catch {

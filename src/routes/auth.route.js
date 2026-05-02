@@ -9,7 +9,11 @@ const router = express.Router();
 // Public routes with rate limiting
 router.post("/register", authRateLimiter, authController.userRegisterController);
 router.post("/login", authRateLimiter, authController.userLoginController);
+router.post("/verify-otp", authRateLimiter, authController.verifyOTPController);
 router.post("/refresh", authController.refreshTokenController);
+
+// Protected MFA route
+router.post("/enable-mfa", authMiddleware, authController.enableMfaController);
 
 // Passkey authentication (Public)
 router.post("/passkeys/login/options", authRateLimiter, passkeyController.generateLoginOptions);

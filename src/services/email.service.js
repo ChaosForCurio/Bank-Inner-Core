@@ -1,5 +1,8 @@
 const FormData = require('form-data');
 const Mailgun = require('mailgun.js');
+const fs = require('fs');
+const path = require('path');
+const handlebars = require('handlebars');
 
 const mailgun = new Mailgun(FormData);
 const mg = mailgun.client({
@@ -10,30 +13,42 @@ const mg = mailgun.client({
 const MAILGUN_DOMAIN = process.env.MAILGUN_DOMAIN;
 const SENDER_EMAIL = process.env.MAILGUN_SENDER;
 
+// Helper to compile handlebars template
+function compileTemplate(templateName, data) {
+    const filePath = path.join(__dirname, '../templates/emails', `${templateName}.hbs`);
+    const source = fs.readFileSync(filePath, 'utf-8');
+    const template = handlebars.compile(source);
+    return template(data);
+}
+
 /**
  * Send a welcome email to a new user.
  */
-async function sendWelcomeEmail(email, name, subject = "Welcome to Bank Inner Core", html) {
+async function sendWelcomeEmail(email, name, subject = "Welcome to Bank Inner Core") {
     try {
+        const html = compileTemplate('welcome', { name });
         const data = await mg.messages.create(MAILGUN_DOMAIN, {
             from: SENDER_EMAIL,
             to: [email],
             subject: subject,
-            html: html || `<p>Hello ${name}, Thank You for Registering with Bank Inner Core</p>`,
+            html: html,
         });
-        console.log('Welcome email sent successfully:', data);
+        console.log(`Welcome email sent to ${email}:`, data.id);
+        return data;
     } catch (err) {
-        console.error('Error sending welcome email:', err);
+        console.error(`Error sending welcome email to ${email}:`, err.message);
+        throw err;
     }
 }
 
 async function sendTransactionEmail(userEmail, username, transactionId, amount, type) {
     try {
+        const html = compileTemplate('transaction', { name: username, transactionId, amount, type });
         const data = await mg.messages.create(MAILGUN_DOMAIN, {
             from: SENDER_EMAIL,
             to: [userEmail],
             subject: 'Transaction Notification',
-            html: `<p>Hello ${username},</p><p>Transaction ID: ${transactionId}</p><p>Transaction Amount: ${amount}</p><p>Transaction Type: ${type}</p><p>Transaction Status: SUCCESS</p>`,
+            html: html,
         });
         console.log('Transaction email sent successfully:', data);
     } catch (err) {
@@ -43,11 +58,12 @@ async function sendTransactionEmail(userEmail, username, transactionId, amount, 
 
 async function sendTransactionFailEmail(userEmail, username, transactionId, amount, type) {
     try {
+        const html = compileTemplate('transactionFail', { name: username, transactionId, amount, type });
         const data = await mg.messages.create(MAILGUN_DOMAIN, {
             from: SENDER_EMAIL,
             to: [userEmail],
             subject: 'Transaction Notification - Failed',
-            html: `<p>Hello ${username},</p><p>Transaction ID: ${transactionId}</p><p>Transaction Amount: ${amount}</p><p>Transaction Type: ${type}</p><p>Transaction Status: FAILED</p>`,
+            html: html,
         });
         console.log('Transaction failed email sent successfully:', data);
     } catch (err) {
@@ -57,11 +73,12 @@ async function sendTransactionFailEmail(userEmail, username, transactionId, amou
 
 async function sendLoginEmail(email, name) {
     try {
+        const html = compileTemplate('login', { name });
         const data = await mg.messages.create(MAILGUN_DOMAIN, {
             from: SENDER_EMAIL,
             to: [email],
             subject: 'Login Notification',
-            html: `<p>Hello ${name},</p><p>You have successfully logged in to Bank Inner Core.</p>`,
+            html: html,
         });
         console.log('Login email sent successfully:', data);
     } catch (err) {
@@ -72,26 +89,40 @@ async function sendLoginEmail(email, name) {
 async function sendSecurityAlertEmail(email, name, deviceStr, locationStr, ipAddress) {
     try {
         const time = new Date().toLocaleString();
+        const html = compileTemplate('securityAlert', { 
+            name, 
+            deviceStr: deviceStr || 'Unknown Device', 
+            locationStr: locationStr || 'Unknown Location', 
+            ipAddress, 
+            time 
+        });
+        
         const data = await mg.messages.create(MAILGUN_DOMAIN, {
             from: SENDER_EMAIL,
             to: [email],
             subject: 'Security Alert: New Login Detected',
-            html: `
-                <p>Hello ${name},</p>
-                <p>We noticed a new login to your Bank Inner Core account from an unrecognized device or location.</p>
-                <ul>
-                    <li><strong>Device:</strong> ${deviceStr || 'Unknown Device'}</li>
-                    <li><strong>Location:</strong> ${locationStr || 'Unknown Location'}</li>
-                    <li><strong>IP Address:</strong> ${ipAddress}</li>
-                    <li><strong>Time:</strong> ${time}</li>
-                </ul>
-                <p>If this was you, you can safely ignore this email.</p>
-                <p>If you do not recognize this activity, please contact support immediately and change your password.</p>
-            `,
+            html: html,
         });
         console.log('Security alert email sent successfully:', data);
     } catch (err) {
         console.error('Error sending security alert email:', err);
+    }
+}
+
+async function sendBroadcastEmail(email, name, message, subject = "System Notification - Bank Inner Core") {
+    try {
+        const html = compileTemplate('broadcast', { name, message });
+        const data = await mg.messages.create(MAILGUN_DOMAIN, {
+            from: SENDER_EMAIL,
+            to: [email],
+            subject: subject,
+            html: html,
+        });
+        console.log(`Broadcast email sent to ${email}:`, data.id);
+        return data;
+    } catch (err) {
+        console.error(`Error sending broadcast email to ${email}:`, err.message);
+        throw err;
     }
 }
 
@@ -100,5 +131,6 @@ module.exports = {
     sendLoginEmail,
     sendTransactionEmail,
     sendTransactionFailEmail,
-    sendSecurityAlertEmail
+    sendSecurityAlertEmail,
+    sendBroadcastEmail
 };

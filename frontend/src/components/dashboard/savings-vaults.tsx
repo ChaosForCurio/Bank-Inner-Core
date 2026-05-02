@@ -52,7 +52,7 @@ export function SavingsVaults() {
     const handleDelete = async (id: number) => {
         if (!confirm("Are you sure? Funds will be returned to your account.")) return
         try {
-            await api.delete(`/api/vaults/${id}`)
+            await api.delete(`vaults/${id}`)
             toast.success("Vault deleted")
             fetchVaults()
         } catch (error) {
