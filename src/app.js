@@ -22,8 +22,12 @@ const paymentRequestRouter = require("./routes/paymentRequest.routes")
 const analyticsRouter = require("./routes/analytics.routes")
 const vaultRouter = require("./routes/vault.routes")
 const externalAccountRouter = require("./routes/externalAccount.routes")
+const webhookRouter = require("./routes/webhook.routes")
+const proofRouter = require("./routes/proof.routes")
 const { apiRateLimiter } = require("./middleware/rate-limit.middleware")
 const { sql } = require("./db")
+const swaggerUi = require("swagger-ui-express")
+const swaggerSpecs = require("./config/swagger.config")
 
 const app = express()
 
@@ -131,6 +135,9 @@ app.use("/api/payment-requests", paymentRequestRouter)
 app.use("/api/analytics", analyticsRouter)
 app.use("/api/vaults", vaultRouter)
 app.use("/api/external-accounts", externalAccountRouter)
+app.use("/api/webhooks", webhookRouter)
+app.use("/api/proof", proofRouter)
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpecs))
 
 // 404 Handler
 app.use((req, res, next) => {

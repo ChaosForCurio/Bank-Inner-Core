@@ -7,5 +7,7 @@ router.use(authMiddleware.authMiddleware);
 
 router.get("/spending", analyticsController.getSpendingByCategory);
 router.get("/history", analyticsController.getBalanceHistory);
+router.get("/predictive", analyticsController.getPredictiveCashFlow);
 
 module.exports = router;
+

@@ -5,6 +5,8 @@ const AccountModel = require("../models/account.model");
 const PushService = require("./push.service");
 const VaultModel = require("../models/vault.model");
 const SocketService = require("./socket.service");
+const WebhookService = require("./webhook.service");
+const AIService = require("./ai.service");
 
 const TransactionService = {
     /**
@@ -13,6 +15,9 @@ const TransactionService = {
      */
     async executeTransfer({ fromAccountId, toAccountId, amount, type, idempotencyKey, description }) {
         try {
+            // Auto-categorize based on description
+            const category = AIService.categorize(description);
+
             // A. Create transaction record
             const transaction = await TransactionModel.create({
                 fromAccount: fromAccountId, 
@@ -20,8 +25,10 @@ const TransactionService = {
                 amount, 
                 type, 
                 idempotencyKey, 
-                status: 'pending'
+                status: 'pending',
+                category
             });
+
 
             // B. Update balances (ensure deduction from sender and increase for recipient)
             const updatedFrom = await sql`
@@ -146,6 +153,10 @@ const TransactionService = {
                 console.error("Socket dispatch error:", socketError);
             }
 
+            // H. Trigger Webhooks (non-blocking)
+            WebhookService.trigger('transaction.completed', finalTransaction)
+                .catch(err => console.error("Webhook trigger error:", err));
+
             return finalTransaction;
         } catch (error) {
             console.error("TransactionService Error:", error.message);
@@ -247,6 +258,10 @@ const TransactionService = {
             } catch (socketError) {
                 console.error("Socket dispatch error:", socketError);
             }
+
+            // G. Trigger Webhooks
+            WebhookService.trigger('transaction.completed', finalTx)
+                .catch(err => console.error("Webhook trigger error:", err));
 
             return finalTx;
         } catch (error) {
