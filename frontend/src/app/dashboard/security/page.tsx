@@ -110,7 +110,7 @@ export default function SecurityPage() {
                                 </div>
                             ) : (
                                 <Button 
-                                    variant={mfaData.enabled ? "outline" : "default"}
+                                    variant={mfaData.enabled ? "outline" : "primary"}
                                     onClick={handleToggleMfa}
                                     disabled={loading}
                                 >
