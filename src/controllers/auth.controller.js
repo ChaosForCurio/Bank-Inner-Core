@@ -13,6 +13,8 @@ const UserOtpModel = require("../models/userOtp.model");
 const { generateAccessToken, generateRefreshToken, verifyRefreshToken, verifyResetToken } = require("../utils/token.util");
 const { sendWelcomeEmail, sendLoginEmail, sendSecurityAlertEmail } = require("../services/email.service");
 const { sendOTP } = require("../services/sms.service");
+const NotificationService = require("../services/notification.service");
+
 
 // Validation Schemas
 const registerSchema = z.object({
@@ -256,10 +258,13 @@ async function completeLoginFlow(user, req, res, deviceStr) {
 
     if (isNewDeviceOrLocation) {
         sendSecurityAlertEmail(user.email, user.name, deviceStr, locationStr, ipAddress).catch(console.error);
+        NotificationService.notify(user.id, "Security Alert", `New login detected from ${deviceStr} in ${locationStr}`, "security", "/dashboard/security");
     } else {
         // Regular login email if not new device/location
         sendLoginEmail(user.email, user.name).catch(console.error);
+        NotificationService.notify(user.id, "New Login", `You logged in from ${deviceStr}`, "info");
     }
+
     // ------------------------------------------
 
     const accessToken = generateAccessToken(user);

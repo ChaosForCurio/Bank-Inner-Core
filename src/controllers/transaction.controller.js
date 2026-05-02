@@ -2,7 +2,9 @@ const TransactionModel = require("../models/transaction.model")
 const LedgerModel = require("../models/ledger.model")
 const AccountModel = require("../models/account.model")
 const emailService = require("../services/email.service")
+const NotificationService = require("../services/notification.service")
 const { sql, readSql } = require("../db");
+
 
 /**
  * createTransaction - Standard user-to-user transfer
@@ -63,6 +65,15 @@ async function createTransaction(req, res) {
         emailService.sendTransactionEmail(req.user.email, req.user.name, req.user.id, {
             amount, type: "debit", toAccount: targetAccountId, transactionId: transaction.id
         }).catch(console.error);
+
+        // Sender notification
+        NotificationService.notify(req.user.id, "Transaction Sent", `You sent ${amount} ${fromAcc.currency} to ${toAcc.user_id === req.user.id ? 'your other account' : 'another user'}.`, "transaction", "/dashboard/transactions");
+
+        // Recipient notification
+        if (toAcc.user_id !== req.user.id) {
+            NotificationService.notify(toAcc.user_id, "Funds Received", `You received ${amount} ${toAcc.currency} from ${req.user.name}.`, "transaction", "/dashboard/transactions");
+        }
+
 
         return res.status(201).json({
             message: "Transaction successful",
@@ -165,6 +176,10 @@ async function createInitialFundsTransaction(req, res) {
 
         // D. Complete transaction
         const finalTransaction = await TransactionModel.updateStatus(transaction.id, 'completed');
+
+        // Notification
+        NotificationService.notify(toUserAccount.user_id, "Account Funded", `Your account has been credited with ${amount} ${toUserAccount.currency} as initial funding.`, "transaction", "/dashboard");
+
 
         return res.status(201).json({
             message: "Initial funds added successfully",
