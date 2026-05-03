@@ -148,12 +148,28 @@ export const endpoints = {
     },
     virtualCards: {
         create: "virtual-cards",
+        createBurner: "virtual-cards/burner",
         list: (accountId: number | string) => `virtual-cards/account/${accountId}`,
         toggle: (cardId: number | string) => `virtual-cards/${cardId}/status`,
+        weaponizedCancel: (cardId: number | string) => `virtual-cards/${cardId}/weaponized-cancel`,
     },
     paymentRequests: {
         create: "payment-requests",
         publicDetails: (token: string) => `payment-requests/${token}`,
         fulfill: (token: string) => `payment-requests/${token}/fulfill`
+    },
+    swarms: {
+        create: "swarms",
+        details: (id: string | number) => `swarms/${id}`,
+        pay: (swarmId: string | number, participantId: string | number) => `swarms/${swarmId}/participants/${participantId}/pay`
+    },
+    proofs: {
+        generate: "proof/generate",
+        verify: (token: string) => `proof/verify?token=${token}`
+    },
+    inheritance: {
+        getConfig: "inheritance",
+        configure: "inheritance/configure",
+        cancel: "inheritance/cancel"
     }
 };

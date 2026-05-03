@@ -30,6 +30,17 @@ const VirtualCardService = {
         const month = String(d.getMonth() + 1).padStart(2, '0');
         const year = String(d.getFullYear() + 3).slice(-2);
         return `${month}/${year}`;
+    },
+
+    /**
+     * generateProxyIdentity - Generates a burner email and phone number
+     */
+    generateProxyIdentity() {
+        const randomHex = Math.random().toString(16).substring(2, 8);
+        return {
+            proxyEmail: `proxy-${randomHex}@xieriee-secure.com`,
+            proxyPhone: `+1-555-${Math.floor(1000 + Math.random() * 9000)}`
+        };
     }
 };
 

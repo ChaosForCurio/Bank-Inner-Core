@@ -4,11 +4,11 @@ const VirtualCardModel = {
     /**
      * create - Create a new virtual card
      */
-    async create({ userId, accountId, cardNumber, expiryDate, cvv, nameOnCard, type = 'disposable' }) {
+    async create({ userId, accountId, cardNumber, expiryDate, cvv, nameOnCard, type = 'disposable', proxyEmail = null, proxyPhone = null }) {
         try {
             const cards = await sql`
-                INSERT INTO virtual_cards (user_id, account_id, card_number, expiry_date, cvv, name_on_card, type)
-                VALUES (${userId}, ${accountId}, ${cardNumber}, ${expiryDate}, ${cvv}, ${nameOnCard}, ${type})
+                INSERT INTO virtual_cards (user_id, account_id, card_number, expiry_date, cvv, name_on_card, type, proxy_email, proxy_phone)
+                VALUES (${userId}, ${accountId}, ${cardNumber}, ${expiryDate}, ${cvv}, ${nameOnCard}, ${type}, ${proxyEmail}, ${proxyPhone})
                 RETURNING *
             `;
             return cards[0];

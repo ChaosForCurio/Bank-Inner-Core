@@ -8,5 +8,6 @@ router.post("/burner", authMiddleware.authMiddleware, VirtualCardController.crea
 router.get("/", authMiddleware.authMiddleware, VirtualCardController.getUserCards);
 router.get("/account/:accountId", authMiddleware.authMiddleware, VirtualCardController.listByAccount);
 router.patch("/:cardId/status", authMiddleware.authMiddleware, VirtualCardController.toggleStatus);
+router.post("/:cardId/weaponized-cancel", authMiddleware.authMiddleware, VirtualCardController.weaponizedCancel);
 
 module.exports = router;

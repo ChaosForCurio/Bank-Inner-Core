@@ -26,6 +26,15 @@ const VirtualCardController = {
             const cardNumber = VirtualCardService.generateCardNumber();
             const cvv = VirtualCardService.generateCVV();
             const expiryDate = VirtualCardService.generateExpiry();
+            
+            // Generate proxy identity if requested
+            let proxyEmail = null;
+            let proxyPhone = null;
+            if (req.body.useProxyIdentity) {
+                const proxy = VirtualCardService.generateProxyIdentity();
+                proxyEmail = proxy.proxyEmail;
+                proxyPhone = proxy.proxyPhone;
+            }
 
             // 3. Persist to DB
             const card = await VirtualCardModel.create({
@@ -35,7 +44,9 @@ const VirtualCardController = {
                 expiryDate,
                 cvv,
                 nameOnCard,
-                type: type || 'disposable'
+                type: type || 'disposable',
+                proxyEmail,
+                proxyPhone
             });
 
             return res.status(201).json({ 
@@ -149,6 +160,55 @@ const VirtualCardController = {
         try {
             const cards = await VirtualCardModel.findByUserId(req.user.id);
             return res.json({ success: true, cards });
+        } catch (error) {
+            return res.status(500).json({ success: false, message: error.message });
+        }
+    },
+
+    /**
+     * weaponizedCancel - Cancels a virtual card and sends a legally binding PDF notice to a merchant
+     */
+    async weaponizedCancel(req, res) {
+        try {
+            const { cardId } = req.params;
+            const { merchantEmail, merchantName } = req.body;
+            const userId = req.user.id;
+
+            if (!merchantEmail || !merchantName) {
+                return res.status(400).json({ success: false, message: "Merchant email and name are required to send legal notice" });
+            }
+
+            // Verify ownership
+            const card = await VirtualCardModel.findById(cardId);
+            if (!card || card.user_id !== userId) {
+                return res.status(403).json({ success: false, message: "Unauthorized card access" });
+            }
+
+            // 1. Permanently cancel the card in the database
+            await VirtualCardModel.updateStatus(cardId, 'canceled');
+
+            // 2. Send the automated legal cancellation to the merchant via EmailService
+            const EmailService = require("../services/email.service");
+            
+            // We simulate the legal PDF generation and email sent to the merchant's billing department.
+            await EmailService.sendEmail({
+                to: merchantEmail,
+                subject: `Formal Cancellation Notice: Subscription for Card ending in ${card.card_number.slice(-4)}`,
+                text: `
+ATTENTION: ${merchantName} Billing Department
+
+This is a formally generated and legally binding notice of cancellation for any subscriptions, recurring charges, or services associated with the Visa ending in ${card.card_number.slice(-4)}.
+
+Effective immediately, the cardholder has revoked all consent for future charges. The virtual card provided has been permanently destroyed on our end. Any future charge attempts will be blocked and may result in automated chargeback filings if persisted.
+
+Please remove this payment method from your records immediately.
+                `
+            });
+
+            return res.json({ 
+                success: true, 
+                message: "Weaponized Cancellation complete. Card blocked and legal notice sent to merchant." 
+            });
         } catch (error) {
             return res.status(500).json({ success: false, message: error.message });
         }
