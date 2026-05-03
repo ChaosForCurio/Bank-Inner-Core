@@ -276,9 +276,29 @@ async function getTransactionById(req, res) {
     }
 }
 
+/**
+ * verifyAuditChain - Cryptographically verify the integrity of the transaction ledger
+ */
+async function verifyAuditChain(req, res) {
+    try {
+        const result = await TransactionModel.verifyChain(req.query.limit || 100);
+        return res.status(200).json({
+            status: "success",
+            ...result
+        });
+    } catch (error) {
+        console.error("Audit chain verification error:", error);
+        return res.status(500).json({ 
+            status: "failed", 
+            message: "Failed to verify audit chain integrity" 
+        });
+    }
+}
+
 module.exports = {
     createTransaction,
     createInitialFundsTransaction,
     getTransactionHistory,
-    getTransactionById
+    getTransactionById,
+    verifyAuditChain
 };

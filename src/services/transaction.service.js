@@ -7,6 +7,7 @@ const VaultModel = require("../models/vault.model");
 const SocketService = require("./socket.service");
 const WebhookService = require("./webhook.service");
 const AIService = require("./ai.service");
+const TreasuryService = require("./treasury.service");
 
 const TransactionService = {
     /**
@@ -75,6 +76,18 @@ const TransactionService = {
                 balance: updatedTo[0].balance,
                 description: description || `Transfer from account ${fromAccountId}`
             });
+
+            // G. Autonomous Treasury (Smart Withholding)
+            try {
+                const targetAccount = await AccountModel.findById(toAccountId);
+                if (targetAccount && targetAccount.user_id) {
+                    // This is non-blocking so it doesn't slow down the core transfer
+                    TreasuryService.executeWithholding(targetAccount.user_id, amount, category)
+                        .catch(err => console.error("Treasury execution error:", err));
+                }
+            } catch (treasuryError) {
+                console.error("Failed to trigger treasury withholding:", treasuryError);
+            }
 
             // D. Complete transaction
             const finalTransaction = await TransactionModel.updateStatus(transaction.id, 'completed');

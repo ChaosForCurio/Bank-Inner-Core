@@ -1,13 +1,15 @@
 const express = require("express");
 const router = express.Router();
-const NotificationController = require("../controllers/notification.controller");
-const { authMiddleware } = require("../middleware/auth.middleware");
+const notificationController = require("../controllers/notification.controller");
+const { protect } = require("../middleware/auth.middleware");
 
-router.use(authMiddleware);
+// All notification routes are protected
+router.use(protect);
 
-router.get("/", NotificationController.getNotifications);
-router.patch("/:id/read", NotificationController.markAsRead);
-router.get("/vapid-public-key", NotificationController.getVapidPublicKey);
-router.post("/subscribe", NotificationController.subscribe);
+router.get("/", notificationController.getNotifications);
+router.patch("/:id/read", notificationController.markAsRead);
+router.get("/settings", notificationController.getSettings);
+router.put("/settings", notificationController.updateSettings);
+
 
 module.exports = router;
