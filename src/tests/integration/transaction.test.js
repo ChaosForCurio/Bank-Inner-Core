@@ -1,4 +1,6 @@
-const { describe, it, expect, beforeEach, vi } = require('vitest');
+// Vitest globals are enabled, so no need to require 'vitest' here.
+// This also avoids the ESM/CJS require error.
+
 const request = require('supertest');
 const app = require('../../app');
 const { sql } = require('../../db');

@@ -43,7 +43,7 @@ export const GlassButton = React.forwardRef<HTMLButtonElement, GlassButtonProps>
         <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:animate-shimmer" />
         
         <span className="relative z-10 flex items-center justify-center gap-2">
-          {children}
+          {children as React.ReactNode}
         </span>
       </motion.button>
     );

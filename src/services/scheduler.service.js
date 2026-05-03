@@ -22,10 +22,15 @@ const SchedulerService = {
             await this.processInheritanceChecks();
         });
 
-        // Run every hour to check for expired Swarm Campaigns
+        // Run every minute to check for expired Swarm Campaigns
         cron.schedule("0 * * * *", async () => {
             console.log("Checking for expired Swarm campaigns...");
             await this.processSwarmExpirations();
+        });
+
+        // Run every 10 seconds to process the Outbox (high priority)
+        cron.schedule("*/10 * * * * *", async () => {
+            await this.processOutbox();
         });
     },
 
@@ -233,7 +238,75 @@ const SchedulerService = {
         } catch (error) {
             console.error("Inheritance check error:", error);
         }
+    },
+
+    /**
+     * processOutbox - Reliable event delivery and cross-platform sync
+     */
+    async processOutbox() {
+        const FirebaseService = require("./firebase.service");
+        const WebhookService = require("./webhook.service");
+        const AccountModel = require("../models/account.model");
+
+        try {
+            const pendingEvents = await sql`
+                SELECT * FROM outbox 
+                WHERE status = 'pending' 
+                ORDER BY created_at ASC 
+                LIMIT 10
+            `;
+
+            if (pendingEvents.length === 0) return;
+
+            console.log(`[Outbox] Processing ${pendingEvents.length} events...`);
+
+            for (const event of pendingEvents) {
+                try {
+                    // Update status to processing to avoid double delivery
+                    await sql`UPDATE outbox SET status = 'processing' WHERE id = ${event.id}`;
+
+                    if (event.event_type === 'transaction.completed') {
+                        const { transactionId, fromAccountId, toAccountId, updatedBalances } = event.payload;
+
+                        // 1. Sync to Firebase for Real-time Dashboard (Cross-Platform)
+                        const fromAccount = await AccountModel.findById(fromAccountId);
+                        const toAccount = await AccountModel.findById(toAccountId);
+
+                        if (fromAccount) {
+                            await FirebaseService.syncBalance(fromAccount.user_id, fromAccountId, updatedBalances.from);
+                        }
+                        if (toAccount) {
+                            await FirebaseService.syncBalance(toAccount.user_id, toAccountId, updatedBalances.to);
+                        }
+
+                        // 2. Reliable Webhook Trigger
+                        // (Now it lives here instead of the service to ensure it happens even if the process restarts)
+                        const [tx] = await sql`SELECT * FROM transactions WHERE id = ${transactionId}`;
+                        if (tx) {
+                            await WebhookService.trigger('transaction.completed', tx);
+                        }
+                    }
+
+                    // Mark as completed
+                    await sql`
+                        UPDATE outbox 
+                        SET status = 'completed', processed_at = CURRENT_TIMESTAMP 
+                        WHERE id = ${event.id}
+                    `;
+                } catch (eventError) {
+                    console.error(`[Outbox] Failed to process event ${event.id}:`, eventError.message);
+                    await sql`
+                        UPDATE outbox 
+                        SET status = 'failed', error_message = ${eventError.message} 
+                        WHERE id = ${event.id}
+                    `;
+                }
+            }
+        } catch (error) {
+            console.error("Outbox process error:", error);
+        }
     }
 };
 
 module.exports = SchedulerService;
+

@@ -153,9 +153,24 @@ const TransactionService = {
                 console.error("Socket dispatch error:", socketError);
             }
 
-            // H. Trigger Webhooks (non-blocking)
-            WebhookService.trigger('transaction.completed', finalTransaction)
-                .catch(err => console.error("Webhook trigger error:", err));
+            // H. Add to Outbox for Cross-Platform Sync and Resilience
+            await sql`
+                INSERT INTO outbox (event_type, payload, status)
+                VALUES (
+                    'transaction.completed', 
+                    ${JSON.stringify({
+                        transactionId: finalTransaction.id,
+                        fromAccountId,
+                        toAccountId,
+                        amount,
+                        updatedBalances: {
+                            from: updatedFrom[0].balance,
+                            to: updatedTo[0].balance
+                        }
+                    })}, 
+                    'pending'
+                )
+            `;
 
             return finalTransaction;
         } catch (error) {
@@ -259,9 +274,24 @@ const TransactionService = {
                 console.error("Socket dispatch error:", socketError);
             }
 
-            // G. Trigger Webhooks
-            WebhookService.trigger('transaction.completed', finalTx)
-                .catch(err => console.error("Webhook trigger error:", err));
+            // G. Add to Outbox for Cross-Platform Sync
+            await sql`
+                INSERT INTO outbox (event_type, payload, status)
+                VALUES (
+                    'transaction.completed', 
+                    ${JSON.stringify({
+                        transactionId: finalTx.id,
+                        fromAccountId,
+                        toAccountId,
+                        amount: targetAmount,
+                        updatedBalances: {
+                            from: updatedFrom[0].balance,
+                            to: updatedTo[0].balance
+                        }
+                    })}, 
+                    'pending'
+                )
+            `;
 
             return finalTx;
         } catch (error) {
@@ -270,5 +300,6 @@ const TransactionService = {
         }
     }
 };
+
 
 module.exports = TransactionService;
