@@ -8,8 +8,11 @@ router.use(protect);
 
 router.get("/", notificationController.getNotifications);
 router.patch("/:id/read", notificationController.markAsRead);
+router.post("/:id/acknowledge", notificationController.acknowledgeDelivery);
+router.post("/:id/action", notificationController.handleAction);
 router.get("/settings", notificationController.getSettings);
 router.put("/settings", notificationController.updateSettings);
+
 
 
 module.exports = router;

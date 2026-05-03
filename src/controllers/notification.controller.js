@@ -105,10 +105,74 @@ async function markAsRead(req, res) {
     }
 }
 
+/**
+ * acknowledgeDelivery - Mark a notification as delivered (via WebPush or Frontend)
+ */
+async function acknowledgeDelivery(req, res) {
+    try {
+        const userId = req.user.id;
+        const { id } = req.params;
+
+        await sql`
+            UPDATE notifications 
+            SET is_delivered = TRUE, delivered_at = CURRENT_TIMESTAMP 
+            WHERE id = ${id} AND user_id = ${userId}
+        `;
+
+        return res.status(200).json({
+            status: "success",
+            message: "Delivery acknowledged"
+        });
+    } catch (error) {
+        console.error("Error acknowledging delivery:", error);
+        return res.status(500).json({
+            status: "failed",
+            message: "Failed to acknowledge delivery"
+        });
+    }
+}
+
+/**
+ * handleAction - Handle a notification action (e.g., Approve/Decline)
+ */
+async function handleAction(req, res) {
+    try {
+        const userId = req.user.id;
+        const { id } = req.params;
+        const { action, metadata } = req.body;
+
+        console.log(`Notification action received for ${id}: ${action}`, metadata);
+
+        // Here you would implement business logic for actions
+        // Example: if (action === 'approve') { await TransactionService.approve(...) }
+        
+        // Mark as read and acknowledged
+        await sql`
+            UPDATE notifications 
+            SET is_read = TRUE, is_delivered = TRUE, delivered_at = CURRENT_TIMESTAMP 
+            WHERE id = ${id} AND user_id = ${userId}
+        `;
+
+        return res.status(200).json({
+            status: "success",
+            message: `Action ${action} processed successfully`
+        });
+    } catch (error) {
+        console.error("Error handling notification action:", error);
+        return res.status(500).json({
+            status: "failed",
+            message: "Failed to process action"
+        });
+    }
+}
+
 module.exports = {
     getSettings,
     updateSettings,
     getNotifications,
-    markAsRead
+    markAsRead,
+    acknowledgeDelivery,
+    handleAction
 };
+
 
