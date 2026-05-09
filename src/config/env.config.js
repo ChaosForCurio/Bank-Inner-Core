@@ -32,6 +32,9 @@ const envSchema = z.object({
     // Performance & Monitoring
     SENTRY_DSN: z.string().url().optional(),
     DATABASE_READ_URL: z.string().url().optional(),
+    
+    // Redis & Queue
+    REDIS_URL: z.string().url().optional().default("redis://localhost:6379"),
 });
 
 /**

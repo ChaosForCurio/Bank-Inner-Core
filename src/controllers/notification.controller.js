@@ -70,6 +70,26 @@ const NotificationController = {
     },
 
     /**
+     * sendNotification - Allow frontend to trigger a notification for the current user
+     */
+    async sendNotification(req, res) {
+        const userId = req.user.id;
+        const { title, message, type, url } = req.body;
+        const NotificationService = require("../services/notification.service");
+
+        try {
+            await NotificationService.notify(userId, title, message, type, url);
+            return res.status(201).json({
+                success: true,
+                message: "Notification sent"
+            });
+        } catch (error) {
+            console.error("Send notification error:", error);
+            return res.status(500).json({ message: "Failed to send notification" });
+        }
+    },
+
+    /**
      * createNotification - Internal utility to create notifications
      */
     async createInternal(userId, title, message, type = 'info') {

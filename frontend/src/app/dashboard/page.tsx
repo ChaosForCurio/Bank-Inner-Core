@@ -26,6 +26,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { GlassCard } from "@/components/ui/glass-card"
 import { Skeleton } from "@/components/ui/skeleton"
+import { PrivacyText } from "@/components/ui/privacy-text"
 
 export default function Dashboard({ user: initialUser }: { user?: any }) {
     const [user, setUser] = useState<any>(initialUser)
@@ -134,11 +135,8 @@ export default function Dashboard({ user: initialUser }: { user?: any }) {
                         <div className="flex justify-between items-start">
                             <div className="space-y-1">
                                 <span className="text-xs font-bold uppercase tracking-[0.2em] text-white/40">Total Liquidity</span>
-                                <h2 className={cn(
-                                    "text-4xl md:text-6xl font-black font-outfit tracking-tighter bg-gradient-to-b from-white to-white/60 bg-clip-text text-transparent transition-all duration-500",
-                                    isPrivate && "blur-xl select-none"
-                                )}>
-                                    {formatCurrency(balance)}
+                                <h2 className="text-4xl md:text-6xl font-black font-outfit tracking-tighter bg-gradient-to-b from-white to-white/60 bg-clip-text text-transparent">
+                                    <PrivacyText>{formatCurrency(balance)}</PrivacyText>
                                 </h2>
                             </div>
                             <div className="flex px-3 py-1.5 bg-white/10 backdrop-blur-md rounded-lg items-center justify-center border border-white/20 shadow-xl">
@@ -153,7 +151,9 @@ export default function Dashboard({ user: initialUser }: { user?: any }) {
                                 </div>
                                 <div>
                                     <p className="text-[10px] uppercase font-bold tracking-wider text-white/40">Account ID</p>
-                                    <p className="font-mono font-medium text-sm text-white/90">{primaryAccount?.id || "----"}</p>
+                                    <p className="font-mono font-medium text-sm text-white/90">
+                                        <PrivacyText mask="XXXX-XXXX-XXXX">{primaryAccount?.id || "----"}</PrivacyText>
+                                    </p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-3 px-4 py-2 bg-white/5 rounded-2xl border border-white/10 ring-1 ring-white/5">
@@ -239,10 +239,9 @@ export default function Dashboard({ user: initialUser }: { user?: any }) {
                                     <div className="text-right flex flex-col items-end gap-1">
                                         <p className={cn(
                                             "font-black font-outfit text-lg transition-all duration-500",
-                                            tx.type === "credit" ? "text-emerald-400" : "text-white",
-                                            isPrivate && "blur-md select-none"
+                                            tx.type === "credit" ? "text-emerald-400" : "text-white"
                                         )}>
-                                            {tx.type === "credit" ? "+" : "-"}{formatCurrency(tx.amount)}
+                                            <PrivacyText>{tx.type === "credit" ? "+" : "-"}{formatCurrency(tx.amount)}</PrivacyText>
                                         </p>
                                         <MoreVertical size={14} className="text-white/20 group-hover:text-white/60 transition-colors cursor-pointer" />
                                     </div>

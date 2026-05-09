@@ -49,6 +49,38 @@ const TransactionModel = {
             console.error("Error in TransactionModel.updateStatus:", error);
             throw error;
         }
+    },
+
+    /**
+     * findByAccountWithPagination - Find transactions for an account with pagination
+     */
+    async findByAccountWithPagination(accountId, limit = 50, cursor = null) {
+        try {
+            let transactions;
+            
+            if (cursor) {
+                // Assuming cursor is the ID or created_at of the last seen item
+                transactions = await sql`
+                    SELECT * FROM transactions 
+                    WHERE (from_account = ${accountId} OR to_account = ${accountId})
+                    AND created_at < (SELECT created_at FROM transactions WHERE id = ${cursor})
+                    ORDER BY created_at DESC, id DESC
+                    LIMIT ${limit}
+                `;
+            } else {
+                transactions = await sql`
+                    SELECT * FROM transactions 
+                    WHERE from_account = ${accountId} OR to_account = ${accountId}
+                    ORDER BY created_at DESC, id DESC
+                    LIMIT ${limit}
+                `;
+            }
+            
+            return transactions;
+        } catch (error) {
+            console.error("Error in TransactionModel.findByAccountWithPagination:", error);
+            throw error;
+        }
     }
 };
 

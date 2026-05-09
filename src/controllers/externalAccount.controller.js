@@ -73,9 +73,8 @@ const ExternalAccountController = {
             const userId = req.user.id;
             const { accountId } = req.params;
 
-            // First, verify this account belongs to the user
-            const accounts = await ExternalAccountModel.findByUserId(userId);
-            const account = accounts.find(a => a.id.toString() === accountId);
+            // First, verify this account belongs to the user with a direct optimized DB query
+            const account = await ExternalAccountModel.findByIdAndUserId(accountId, userId);
 
             if (!account) {
                 return res.status(404).json({ success: false, message: "External account not found" });

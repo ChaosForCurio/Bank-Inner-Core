@@ -199,6 +199,8 @@ async function createInitialFundsTransaction(req, res) {
 async function getTransactionHistory(req, res) {
     try {
         const userId = req.user.id;
+        const limit = parseInt(req.query.limit) || 50;
+        const cursor = req.query.cursor ? new Date(req.query.cursor) : null;
 
         // 1. Get all accounts for this user
         const accounts = await AccountModel.findByUserId(userId);
@@ -209,25 +211,47 @@ async function getTransactionHistory(req, res) {
         }
 
         // 2. Fetch history from Ledgers (since it handles credits/debits per account)
-        // We'll join with transactions to get more details if needed, 
-        // but for now, the ledger entries have the main info.
-        const history = await readSql`
-            SELECT 
-                l.*, 
-                t.type as transaction_type,
-                t.from_account,
-                t.to_account,
-                t.status as transaction_status,
-                t.idempotency_key as transaction_uuid
-            FROM ledgers l
-            JOIN transactions t ON l.transaction_id = t.id
-            WHERE l.account_id = ANY(${accountIds})
-            ORDER BY l.created_at DESC
-        `;
+        // Apply cursor-based pagination using created_at
+        let history;
+        if (cursor && !isNaN(cursor)) {
+            history = await readSql`
+                SELECT 
+                    l.*, 
+                    t.type as transaction_type,
+                    t.from_account,
+                    t.to_account,
+                    t.status as transaction_status,
+                    t.idempotency_key as transaction_uuid
+                FROM ledgers l
+                JOIN transactions t ON l.transaction_id = t.id
+                WHERE l.account_id = ANY(${accountIds})
+                AND l.created_at < ${cursor}
+                ORDER BY l.created_at DESC
+                LIMIT ${limit}
+            `;
+        } else {
+            history = await readSql`
+                SELECT 
+                    l.*, 
+                    t.type as transaction_type,
+                    t.from_account,
+                    t.to_account,
+                    t.status as transaction_status,
+                    t.idempotency_key as transaction_uuid
+                FROM ledgers l
+                JOIN transactions t ON l.transaction_id = t.id
+                WHERE l.account_id = ANY(${accountIds})
+                ORDER BY l.created_at DESC
+                LIMIT ${limit}
+            `;
+        }
+
+        const nextCursor = history.length === limit ? history[history.length - 1].created_at : null;
 
         return res.status(200).json({
             status: "success",
-            transactions: history
+            transactions: history,
+            nextCursor
         });
     } catch (error) {
         console.error("Get history error:", error);

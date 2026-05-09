@@ -16,10 +16,24 @@ export function PrivacyProvider({ children }: { children: React.ReactNode }) {
         if (stored === 'true') setIsPrivate(true)
     }, [])
 
-    const togglePrivacy = () => {
+    const togglePrivacy = async () => {
         const newValue = !isPrivate
         setIsPrivate(newValue)
         localStorage.setItem('xieriee_privacy_mode', String(newValue))
+
+        // Trigger a notification for security check
+        try {
+            const { api } = await import("@/lib/api")
+            await api.post('notifications', {
+                title: newValue ? "Privacy Shield Active" : "Privacy Shield Deactivated",
+                message: newValue 
+                    ? "Sensitive information is now hidden from the dashboard for your security."
+                    : "Information visibility has been restored.",
+                type: newValue ? "security" : "info"
+            })
+        } catch (error) {
+            console.error("Failed to send privacy notification:", error)
+        }
     }
 
     return (

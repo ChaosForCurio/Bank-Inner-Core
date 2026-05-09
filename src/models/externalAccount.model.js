@@ -39,6 +39,23 @@ const ExternalAccountModel = {
     },
     
     /**
+     * Find a specific external account by ID and User ID
+     */
+    async findByIdAndUserId(id, userId) {
+        try {
+            const accounts = await sql`
+                SELECT id, user_id, institution_name, account_id, mask, type, item_id, created_at 
+                FROM external_accounts 
+                WHERE id = ${id} AND user_id = ${userId}
+            `;
+            return accounts[0] || null;
+        } catch (error) {
+            console.error("Error in ExternalAccountModel.findByIdAndUserId:", error);
+            throw error;
+        }
+    },
+    
+    /**
      * Get sensitive account details including access token
      * Used internally by services, NOT returned to client
      */

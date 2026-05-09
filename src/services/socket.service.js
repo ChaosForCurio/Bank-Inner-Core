@@ -1,17 +1,23 @@
 const { Server } = require("socket.io");
 const jwt = require("jsonwebtoken");
 const env = require("../config/env.config");
+const { createAdapter } = require("@socket.io/redis-adapter");
+const { createRedisConnection } = require("../config/redis.config");
 
 let io;
 
 const SocketService = {
     init(server) {
+        const pubClient = createRedisConnection();
+        const subClient = pubClient.duplicate();
+
         io = new Server(server, {
             cors: {
                 origin: [env.ORIGIN, "https://bank-inner-core-4s7p.vercel.app"].filter(Boolean),
                 methods: ["GET", "POST"],
                 credentials: true
-            }
+            },
+            adapter: createAdapter(pubClient, subClient)
         });
 
         // Authentication Middleware for Socket.io

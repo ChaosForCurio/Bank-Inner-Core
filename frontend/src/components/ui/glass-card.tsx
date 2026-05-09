@@ -29,10 +29,11 @@ export const GlassCard = React.forwardRef<HTMLDivElement, GlassCardProps>(
         ref={ref}
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        whileHover={hoverEffect ? { y: -4, borderColor: 'rgba(255,255,255,0.2)' } : {}}
+        whileHover={hoverEffect ? { y: -4 } : {}}
         onMouseMove={handleMouseMove}
         className={cn(
           'relative p-6 bg-[#161616]/60 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden transition-colors duration-300 group',
+          hoverEffect && 'hover:border-white/20',
           glow && 'shadow-[0_0_40px_rgba(255,255,255,0.02)]',
           className
         )}

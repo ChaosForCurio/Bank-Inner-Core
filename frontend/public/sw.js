@@ -13,6 +13,7 @@ self.addEventListener("push", (event) => {
         body: data.body || "New notification",
         icon: data.icon || "/favicon.svg",
         badge: "/favicon.svg",
+        requireInteraction: true,
         data: {
             url: data.url || "/"
         }

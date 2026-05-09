@@ -1,4 +1,5 @@
 const ExternalAccountModel = require("../models/externalAccount.model");
+const { redisClient } = require("../config/redis.config");
 
 /**
  * OpenBankingService
@@ -53,6 +54,15 @@ const OpenBankingService = {
      * Fetches real-time balances for an external account
      */
     async getBalances(accountId) {
+        // Check Redis cache first
+        const cacheKey = `balances:${accountId}`;
+        const cachedBalances = await redisClient.get(cacheKey);
+        
+        if (cachedBalances) {
+            console.log(`[Mock Plaid] Serving cached balances for token`);
+            return JSON.parse(cachedBalances);
+        }
+
         // MOCK: In a real app, you would fetch the access_token from DB and call Plaid API: client.accountsBalanceGet({ access_token })
         const accountSecrets = await ExternalAccountModel.getAccountSecrets(accountId);
         
@@ -65,12 +75,17 @@ const OpenBankingService = {
         // Simulate a balance response
         const randomBalance = (Math.random() * 10000).toFixed(2);
         
-        return {
+        const balances = {
             available: parseFloat(randomBalance),
             current: parseFloat(randomBalance) + 50.00,
             iso_currency_code: "USD",
             last_updated: new Date().toISOString()
         };
+
+        // Cache for 5 minutes (300 seconds)
+        await redisClient.set(cacheKey, JSON.stringify(balances), 'EX', 300);
+
+        return balances;
     }
 };
 

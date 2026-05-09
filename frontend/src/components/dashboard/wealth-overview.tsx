@@ -9,7 +9,9 @@ import {
 import { GlassCard } from "@/components/ui/glass-card"
 import { api, endpoints } from "@/lib/api"
 import { formatCurrency } from "@/lib/utils"
-import { TrendingUp, PieChart as PieChartIcon, Activity } from "lucide-react"
+import { TrendingUp, PieChart as PieChartIcon, Activity, Lock } from "lucide-react"
+import { usePrivacy } from "@/context/privacy-context"
+import { cn } from "@/lib/utils"
 
 const COLORS = ['#60a5fa', '#a78bfa', '#34d399', '#fb923c', '#f87171', '#818cf8', '#fbbf24'];
 
@@ -18,6 +20,7 @@ export function WealthOverview() {
     const [historyData, setHistoryData] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
     const [mounted, setMounted] = useState(false)
+    const { isPrivate } = usePrivacy()
 
     useEffect(() => {
         setMounted(true)
@@ -62,35 +65,45 @@ export function WealthOverview() {
                         <h3 className="text-xl font-bold font-outfit">Spending Insights</h3>
                     </div>
 
-                    <div className="h-[280px] w-full">
-                        {mounted && (
-                            <ResponsiveContainer width="100%" height="100%">
-                                <PieChart>
-                                    <Pie
-                                        data={spendingData}
-                                        cx="50%"
-                                        cy="50%"
-                                        innerRadius={60}
-                                        outerRadius={80}
-                                        paddingAngle={5}
-                                        dataKey="total_amount"
-                                        nameKey="category"
-                                    >
-                                        {spendingData.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                        ))}
-                                    </Pie>
-                                    <RechartsTooltip 
-                                        contentStyle={{ 
-                                            background: 'rgba(0,0,0,0.8)', 
-                                            border: '1px solid rgba(255,255,255,0.1)',
-                                            borderRadius: '12px',
-                                            backdropFilter: 'blur(10px)'
-                                        }}
-                                        formatter={(value: any) => formatCurrency(value)}
-                                    />
-                                </PieChart>
-                            </ResponsiveContainer>
+                    <div className="h-[280px] w-full relative">
+                        <div className={cn("h-full w-full transition-all duration-700", isPrivate && "blur-2xl opacity-20 select-none grayscale")}>
+                            {mounted && (
+                                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                                    <PieChart>
+                                        <Pie
+                                            data={spendingData}
+                                            cx="50%"
+                                            cy="50%"
+                                            innerRadius={60}
+                                            outerRadius={80}
+                                            paddingAngle={5}
+                                            dataKey="total_amount"
+                                            nameKey="category"
+                                        >
+                                            {spendingData.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                            ))}
+                                        </Pie>
+                                        <RechartsTooltip 
+                                            contentStyle={{ 
+                                                background: 'rgba(0,0,0,0.8)', 
+                                                border: '1px solid rgba(255,255,255,0.1)',
+                                                borderRadius: '12px',
+                                                backdropFilter: 'blur(10px)'
+                                            }}
+                                            formatter={(value: any) => formatCurrency(value)}
+                                        />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            )}
+                        </div>
+                        {isPrivate && (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+                                <div className="p-3 rounded-full bg-white/5 border border-white/10">
+                                    <Lock className="w-5 h-5 text-white/40" />
+                                </div>
+                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Data Masked</p>
+                            </div>
                         )}
                     </div>
                     
@@ -125,38 +138,48 @@ export function WealthOverview() {
                         </div>
                     </div>
 
-                    <div className="h-[280px] w-full">
-                        {mounted && (
-                            <ResponsiveContainer width="100%" height="100%">
-                                <LineChart data={historyData}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                                    <XAxis 
-                                        dataKey="date" 
-                                        axisLine={false} 
-                                        tickLine={false} 
-                                        tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10 }}
-                                        dy={10}
-                                    />
-                                    <YAxis hide />
-                                    <RechartsTooltip 
-                                        contentStyle={{ 
-                                            background: 'rgba(0,0,0,0.8)', 
-                                            border: '1px solid rgba(255,255,255,0.1)',
-                                            borderRadius: '12px',
-                                            backdropFilter: 'blur(10px)'
-                                        }}
-                                        formatter={(value: any) => formatCurrency(value)}
-                                    />
-                                    <Line 
-                                        type="monotone" 
-                                        dataKey="total_balance" 
-                                        stroke="#34d399" 
-                                        strokeWidth={4}
-                                        dot={false}
-                                        activeDot={{ r: 6, fill: '#34d399', stroke: '#fff', strokeWidth: 2 }}
-                                    />
-                                </LineChart>
-                            </ResponsiveContainer>
+                    <div className="h-[280px] w-full relative">
+                        <div className={cn("h-full w-full transition-all duration-700", isPrivate && "blur-2xl opacity-20 select-none grayscale")}>
+                            {mounted && (
+                                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                                    <LineChart data={historyData}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                                        <XAxis 
+                                            dataKey="date" 
+                                            axisLine={false} 
+                                            tickLine={false} 
+                                            tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10 }}
+                                            dy={10}
+                                        />
+                                        <YAxis hide />
+                                        <RechartsTooltip 
+                                            contentStyle={{ 
+                                                background: 'rgba(0,0,0,0.8)', 
+                                                border: '1px solid rgba(255,255,255,0.1)',
+                                                borderRadius: '12px',
+                                                backdropFilter: 'blur(10px)'
+                                            }}
+                                            formatter={(value: any) => formatCurrency(value)}
+                                        />
+                                        <Line 
+                                            type="monotone" 
+                                            dataKey="total_balance" 
+                                            stroke="#34d399" 
+                                            strokeWidth={4}
+                                            dot={false}
+                                            activeDot={{ r: 6, fill: '#34d399', stroke: '#fff', strokeWidth: 2 }}
+                                        />
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            )}
+                        </div>
+                        {isPrivate && (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+                                <div className="p-3 rounded-full bg-white/5 border border-white/10">
+                                    <Lock className="w-5 h-5 text-white/40" />
+                                </div>
+                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Trend Masked</p>
+                            </div>
                         )}
                     </div>
                 </GlassCard>

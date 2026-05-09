@@ -6,6 +6,8 @@ import { useSocket } from '@/context/socket-context';
 import { GlassCard } from '../ui/glass-card';
 import { ArrowUpRight, ArrowDownLeft, Bell } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { usePrivacy } from '@/context/privacy-context';
+import { PrivacyText } from '@/components/ui/privacy-text';
 
 interface Transaction {
   id: string;
@@ -19,6 +21,7 @@ interface Transaction {
 export const ActivityFeed: React.FC = () => {
   const { socket } = useSocket();
   const [activities, setActivities] = useState<Transaction[]>([]);
+  const { isPrivate } = usePrivacy();
 
   useEffect(() => {
     if (!socket) return;
@@ -76,7 +79,9 @@ export const ActivityFeed: React.FC = () => {
                     "text-sm font-bold",
                     tx.type === 'credit' ? "text-green-500" : "text-white"
                   )}>
-                    {tx.type === 'credit' ? '+' : '-'} ₹{parseFloat(tx.amount.toString()).toLocaleString('en-IN')}
+                    <PrivacyText>
+                        {tx.type === 'credit' ? '+' : '-'} ₹{parseFloat(tx.amount.toString()).toLocaleString('en-IN')}
+                    </PrivacyText>
                   </p>
                   <p className="text-[10px] text-white/20">Just now</p>
                 </div>

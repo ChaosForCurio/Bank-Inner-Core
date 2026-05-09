@@ -4,6 +4,8 @@ import React, { useState } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Sector, Tooltip } from 'recharts';
 import { GlassCard } from '../ui/glass-card';
 import { cn } from '@/lib/utils';
+import { usePrivacy } from '@/context/privacy-context';
+import { Lock } from 'lucide-react';
 
 interface DataPoint {
   category: string;
@@ -54,6 +56,7 @@ const renderActiveShape = (props: any) => {
 
 export const SpendingAnalysis: React.FC<SpendingAnalysisProps> = ({ data }) => {
   const [activeIndex, setActiveIndex] = useState(0);
+  const { isPrivate } = usePrivacy();
 
   const onPieEnter = (_: any, index: number) => {
     setActiveIndex(index);
@@ -76,34 +79,43 @@ export const SpendingAnalysis: React.FC<SpendingAnalysisProps> = ({ data }) => {
       </div>
 
       <div className="flex-1 w-full relative">
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie
-              activeShape={renderActiveShape}
-              data={data}
-              cx="50%"
-              cy="50%"
-              innerRadius={80}
-              outerRadius={100}
-              dataKey="total_amount"
-              onMouseEnter={onPieEnter}
-              stroke="none"
-            >
-              {data.map((entry, index) => (
-                <Cell 
-                    key={`cell-${index}`} 
-                    fill={COLORS[index % COLORS.length]} 
-                    style={{ 
-                        filter: activeIndex === index ? `drop-shadow(0 0 8px ${COLORS[index % COLORS.length]}88)` : 'none',
-                        transition: 'filter 0.3s ease'
-                    }}
-                />
-              ))}
-            </Pie>
-            <Tooltip content={<></>} defaultIndex={0} />
-          </PieChart>
-        </ResponsiveContainer>
-
+        <div className={cn("h-full w-full transition-all duration-700", isPrivate && "blur-2xl opacity-20 select-none grayscale")}>
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+            <PieChart>
+                <Pie
+                activeShape={isPrivate ? undefined : renderActiveShape}
+                data={data}
+                cx="50%"
+                cy="50%"
+                innerRadius={80}
+                outerRadius={100}
+                dataKey="total_amount"
+                onMouseEnter={onPieEnter}
+                stroke="none"
+                >
+                {data.map((entry, index) => (
+                    <Cell 
+                        key={`cell-${index}`} 
+                        fill={COLORS[index % COLORS.length]} 
+                        style={{ 
+                            filter: activeIndex === index ? `drop-shadow(0 0 8px ${COLORS[index % COLORS.length]}88)` : 'none',
+                            transition: 'filter 0.3s ease'
+                        }}
+                    />
+                ))}
+                </Pie>
+                {!isPrivate && <Tooltip content={<></>} defaultIndex={0} />}
+            </PieChart>
+            </ResponsiveContainer>
+        </div>
+        {isPrivate && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+                <div className="p-3 rounded-full bg-white/5 border border-white/10">
+                    <Lock className="w-5 h-5 text-white/40" />
+                </div>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Analysis Masked</p>
+            </div>
+        )}
       </div>
     </GlassCard>
   );

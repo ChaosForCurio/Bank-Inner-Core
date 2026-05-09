@@ -9,5 +9,6 @@ router.get("/", NotificationController.getNotifications);
 router.patch("/:id/read", NotificationController.markAsRead);
 router.get("/vapid-public-key", NotificationController.getVapidPublicKey);
 router.post("/subscribe", NotificationController.subscribe);
+router.post("/", NotificationController.sendNotification);
 
 module.exports = router;

@@ -1,3 +1,5 @@
+const crypto = require('crypto');
+
 /**
  * VirtualCardService - Logic for generating virtual banking cards
  */
@@ -10,7 +12,7 @@ const VirtualCardService = {
         const bin = "453278"; 
         let number = bin;
         while (number.length < 16) {
-            number += Math.floor(Math.random() * 10).toString();
+            number += crypto.randomInt(0, 10).toString();
         }
         return number;
     },
@@ -19,7 +21,7 @@ const VirtualCardService = {
      * generateCVV - Generates a 3-digit CVV
      */
     generateCVV() {
-        return Math.floor(Math.random() * 900 + 100).toString();
+        return crypto.randomInt(100, 1000).toString();
     },
 
     /**
@@ -36,10 +38,10 @@ const VirtualCardService = {
      * generateProxyIdentity - Generates a burner email and phone number
      */
     generateProxyIdentity() {
-        const randomHex = Math.random().toString(16).substring(2, 8);
+        const randomHex = crypto.randomBytes(3).toString('hex');
         return {
             proxyEmail: `proxy-${randomHex}@xieriee-secure.com`,
-            proxyPhone: `+1-555-${Math.floor(1000 + Math.random() * 9000)}`
+            proxyPhone: `+1-555-${crypto.randomInt(1000, 10000)}`
         };
     }
 };

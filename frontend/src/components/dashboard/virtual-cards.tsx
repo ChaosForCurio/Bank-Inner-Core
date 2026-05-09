@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button"
 import { api } from "@/lib/api"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { usePrivacy } from "@/context/privacy-context"
+import { PrivacyText } from "@/components/ui/privacy-text"
 
 function maskCardNumber(num: string, reveal: boolean) {
     if (!num) return "•••• •••• •••• ••••"
@@ -23,6 +25,7 @@ export function VirtualCards() {
     const [revealedCards, setRevealedCards] = useState<Set<number>>(new Set())
     const [copiedId, setCopiedId] = useState<number | null>(null)
     const [form, setForm] = useState({ accountId: "", nameOnCard: "", type: "disposable" })
+    const { isPrivate } = usePrivacy()
 
     useEffect(() => { fetchData() }, [])
 
@@ -193,7 +196,9 @@ export function VirtualCards() {
 
                                 {/* Card Number */}
                                 <div className="font-mono text-xl font-bold text-white tracking-widest mb-6">
-                                    {maskCardNumber(card.card_number, isRevealed)}
+                                    <PrivacyText mask="•••• •••• •••• ••••">
+                                        {maskCardNumber(card.card_number, isRevealed && !isPrivate)}
+                                    </PrivacyText>
                                 </div>
 
                                 {/* Footer */}
@@ -205,9 +210,13 @@ export function VirtualCards() {
                                     <div className="flex gap-2">
                                         <button
                                             onClick={() => toggleReveal(card.id)}
-                                            className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/40 hover:text-white transition-all"
+                                            disabled={isPrivate}
+                                            className={cn(
+                                                "w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-white/40 transition-all",
+                                                isPrivate ? "opacity-20 cursor-not-allowed" : "hover:bg-white/10 hover:text-white"
+                                            )}
                                         >
-                                            {isRevealed ? <EyeOff size={14} /> : <Eye size={14} />}
+                                            {isRevealed && !isPrivate ? <EyeOff size={14} /> : <Eye size={14} />}
                                         </button>
                                         <button
                                             onClick={() => copyCard(card.card_number, card.id)}

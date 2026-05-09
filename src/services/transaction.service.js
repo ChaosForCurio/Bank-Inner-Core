@@ -187,8 +187,8 @@ const TransactionService = {
             // A. Create transaction record with extra exchange metadata
             const transaction = await sql`
                 INSERT INTO transactions (
-                    from_account_id, 
-                    to_account_id, 
+                    from_account, 
+                    to_account, 
                     amount, 
                     type, 
                     status,

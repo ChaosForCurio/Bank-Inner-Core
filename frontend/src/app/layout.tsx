@@ -9,6 +9,7 @@ const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit" });
 export const metadata: Metadata = {
   title: "Xieriee bank | The Future of Banking",
   description: "Secure, fast, and elegant banking for the modern age.",
+  manifest: "/manifest.json",
   icons: {
     icon: "/favicon.svg",
   },

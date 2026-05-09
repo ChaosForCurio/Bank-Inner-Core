@@ -47,16 +47,20 @@ const SchedulerService = {
             console.log(`Found ${expiredSwarms.length} expired swarm campaigns to refund.`);
 
             for (const swarm of expiredSwarms) {
-                // Get participants who paid
-                const fullSwarm = await SwarmModel.getCampaign(swarm.id);
-                for (const p of fullSwarm.participants) {
-                    if (p.amount_paid > 0) {
-                        console.log(`[SWARM] Refunding ${p.amount_paid} to ${p.participant_email} for swarm ${swarm.title}`);
-                        // In a real system, we'd find the user's primary account and credit it.
-                        // For now, we log the intent.
+                try {
+                    // Get participants who paid
+                    const fullSwarm = await SwarmModel.getCampaign(swarm.id);
+                    for (const p of fullSwarm.participants) {
+                        if (p.amount_paid > 0) {
+                            console.log(`[SWARM] Refunding ${p.amount_paid} to ${p.participant_email} for swarm ${swarm.title}`);
+                            // In a real system, we'd find the user's primary account and credit it.
+                            // For now, we log the intent.
+                        }
                     }
+                    await SwarmModel.updateCampaignStatus(swarm.id, 'expired');
+                } catch (swarmErr) {
+                    console.error(`Failed to process expired swarm ${swarm.id}:`, swarmErr.message);
                 }
-                await SwarmModel.updateCampaignStatus(swarm.id, 'expired');
             }
         } catch (error) {
             console.error("Swarm expiration check error:", error);
@@ -153,6 +157,13 @@ const SchedulerService = {
         } catch (transferError) {
             console.error(`Failed to execute schedule ${schedule.id}:`, transferError.message);
             
+            // Update schedule to 'failed' to prevent infinite loop on next cron tick
+            try {
+                await sql`UPDATE scheduled_transfers SET status = 'failed', updated_at = CURRENT_TIMESTAMP WHERE id = ${schedule.id}`;
+            } catch (dbErr) {
+                console.error(`Failed to update schedule ${schedule.id} status to failed:`, dbErr.message);
+            }
+
             const account = await sql`SELECT user_id FROM accounts WHERE id = ${schedule.from_account_id}`;
             if (account.length > 0) {
                 await NotificationController.createInternal(
@@ -181,58 +192,62 @@ const SchedulerService = {
             console.log(`Processing ${triggers.length} inheritance triggers.`);
 
             for (const trigger of triggers) {
-                // If the user's last login is updated AFTER the last_contacted_at, reset protocol
-                if (trigger.last_contacted_at && new Date(trigger.last_login) > new Date(trigger.last_contacted_at)) {
-                    await InheritanceModel.updateStatus(trigger.id, 'active', 0);
-                    await InheritanceModel.logAction(trigger.user_id, "RESET", "User activity detected, protocol reset");
-                    continue;
-                }
-
-                const escalation = trigger.escalation_stage;
-                
-                if (escalation === 0) {
-                    // Stage 1: Send Push & Email warning
-                    await PushService.sendToUser(trigger.user_id, {
-                        title: "Action Required",
-                        body: "We haven't seen you in a while. Please log in to prevent your inheritance protocol from activating."
-                    });
-                    
-                    // We simulate email
-                    console.log(`[Inheritance] Stage 1 Warning sent to ${trigger.email}`);
-                    
-                    await InheritanceModel.updateStatus(trigger.id, 'escalating', 1);
-                    await InheritanceModel.logAction(trigger.user_id, "ESCALATION_STAGE_1", "Initial warning sent");
-                
-                } else if (escalation === 1) {
-                    // Check if 7 days have passed since Stage 1
-                    const diffDays = (Date.now() - new Date(trigger.last_contacted_at).getTime()) / (1000 * 60 * 60 * 24);
-                    if (diffDays >= 7) {
-                        console.log(`[Inheritance] Stage 2 Warning (SMS/Urgent) sent to ${trigger.email}`);
-                        await InheritanceModel.updateStatus(trigger.id, 'escalating', 2);
-                        await InheritanceModel.logAction(trigger.user_id, "ESCALATION_STAGE_2", "Final warning sent");
+                try {
+                    // If the user's last login is updated AFTER the last_contacted_at, reset protocol
+                    if (trigger.last_contacted_at && new Date(trigger.last_login) > new Date(trigger.last_contacted_at)) {
+                        await InheritanceModel.updateStatus(trigger.id, 'active', 0);
+                        await InheritanceModel.logAction(trigger.user_id, "RESET", "User activity detected, protocol reset");
+                        continue;
                     }
-                } else if (escalation === 2) {
-                    // Check if 30 days have passed since Stage 1
-                    const diffDays = (Date.now() - new Date(trigger.last_contacted_at).getTime()) / (1000 * 60 * 60 * 24);
-                    if (diffDays >= 30) { // Execute protocol
-                        console.log(`[Inheritance] EXECUTING PROTOCOL for ${trigger.email}`);
-                        
-                        // Transfer all funds or grant access
-                        // In this implementation, we simulate transferring vault balances
-                        const vaults = await sql`SELECT * FROM vaults WHERE user_id = ${trigger.user_id}`;
-                        const totalVaultBalance = vaults.reduce((sum, v) => sum + parseFloat(v.balance), 0);
 
-                        if (totalVaultBalance > 0) {
-                            console.log(`[Inheritance] Transferring ${totalVaultBalance} to beneficiary ${trigger.beneficiary_email}`);
-                            // We would normally execute a real transfer here.
+                    const escalation = trigger.escalation_stage;
+                    
+                    if (escalation === 0) {
+                        // Stage 1: Send Push & Email warning
+                        await PushService.sendToUser(trigger.user_id, {
+                            title: "Action Required",
+                            body: "We haven't seen you in a while. Please log in to prevent your inheritance protocol from activating."
+                        });
+                        
+                        // We simulate email
+                        console.log(`[Inheritance] Stage 1 Warning sent to ${trigger.email}`);
+                        
+                        await InheritanceModel.updateStatus(trigger.id, 'escalating', 1);
+                        await InheritanceModel.logAction(trigger.user_id, "ESCALATION_STAGE_1", "Initial warning sent");
+                    
+                    } else if (escalation === 1) {
+                        // Check if 7 days have passed since Stage 1
+                        const diffDays = (Date.now() - new Date(trigger.last_contacted_at).getTime()) / (1000 * 60 * 60 * 24);
+                        if (diffDays >= 7) {
+                            console.log(`[Inheritance] Stage 2 Warning (SMS/Urgent) sent to ${trigger.email}`);
+                            await InheritanceModel.updateStatus(trigger.id, 'escalating', 2);
+                            await InheritanceModel.logAction(trigger.user_id, "ESCALATION_STAGE_2", "Final warning sent");
                         }
+                    } else if (escalation === 2) {
+                        // Check if 30 days have passed since Stage 1
+                        const diffDays = (Date.now() - new Date(trigger.last_contacted_at).getTime()) / (1000 * 60 * 60 * 24);
+                        if (diffDays >= 30) { // Execute protocol
+                            console.log(`[Inheritance] EXECUTING PROTOCOL for ${trigger.email}`);
+                            
+                            // Transfer all funds or grant access
+                            // In this implementation, we simulate transferring vault balances
+                            const vaults = await sql`SELECT * FROM vaults WHERE user_id = ${trigger.user_id}`;
+                            const totalVaultBalance = vaults.reduce((sum, v) => sum + parseFloat(v.balance), 0);
 
-                        await InheritanceModel.updateStatus(trigger.id, 'executed', 3);
-                        await InheritanceModel.logAction(trigger.user_id, "EXECUTED", `Protocol executed. Granted access to beneficiary ${trigger.beneficiary_email}`);
-                        
-                        // Send final notice to beneficiary
-                        console.log(`[Inheritance] Notice sent to Beneficiary: ${trigger.beneficiary_email}`);
+                            if (totalVaultBalance > 0) {
+                                console.log(`[Inheritance] Transferring ${totalVaultBalance} to beneficiary ${trigger.beneficiary_email}`);
+                                // We would normally execute a real transfer here.
+                            }
+
+                            await InheritanceModel.updateStatus(trigger.id, 'executed', 3);
+                            await InheritanceModel.logAction(trigger.user_id, "EXECUTED", `Protocol executed. Granted access to beneficiary ${trigger.beneficiary_email}`);
+                            
+                            // Send final notice to beneficiary
+                            console.log(`[Inheritance] Notice sent to Beneficiary: ${trigger.beneficiary_email}`);
+                        }
                     }
+                } catch (triggerErr) {
+                    console.error(`Failed to process inheritance trigger ${trigger.id}:`, triggerErr.message);
                 }
             }
         } catch (error) {
