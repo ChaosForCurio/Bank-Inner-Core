@@ -155,6 +155,25 @@ const NotificationService = {
                 console.error("Error in scheduleFallback check:", error);
             }
         }, FALLBACK_DELAY);
+    },
+
+    /**
+     * notifyPaymentRequest - Specialized notification for actionable payment requests
+     */
+    async notifyPaymentRequest(userId, requestorName, amount, currency, token, note) {
+        const title = "Payment Request Received";
+        const message = `${requestorName} is requesting ${amount} ${currency}${note ? ': ' + note : ''}.`;
+        
+        return this.notify(userId, title, message, 'transaction', {
+            token,
+            amount,
+            currency,
+            url: `/payments/${token}`,
+            actions: [
+                { action: 'approve', title: 'Approve' },
+                { action: 'decline', title: 'Decline' }
+            ]
+        });
     }
 };
 

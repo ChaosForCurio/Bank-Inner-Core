@@ -143,10 +143,20 @@ async function handleAction(req, res) {
 
         console.log(`Notification action received for ${id}: ${action}`, metadata);
 
-        // Here you would implement business logic for actions
-        // Example: if (action === 'approve') { await TransactionService.approve(...) }
+        // --- Business Logic for Actions ---
+        if (action === 'confirm_life') {
+            const InheritanceModel = require("../models/inheritance.model");
+            // Find the inheritance config for this user and reset it
+            const config = await InheritanceModel.getByUser(userId);
+            if (config) {
+                await InheritanceModel.updateStatus(config.id, 'active', 0);
+                await InheritanceModel.logAction(userId, "RESET_VIA_NOTIFICATION", "User confirmed activity via push notification");
+                console.log(`[Inheritance] Protocol reset for user ${userId} via notification action.`);
+            }
+        }
         
         // Mark as read and acknowledged
+
         await sql`
             UPDATE notifications 
             SET is_read = TRUE, is_delivered = TRUE, delivered_at = CURRENT_TIMESTAMP 
