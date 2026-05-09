@@ -2,6 +2,8 @@ const crypto = require("crypto");
 const PaymentRequestModel = require("../models/paymentRequest.model");
 const AccountModel = require("../models/account.model");
 const TransactionModel = require("../models/transaction.model");
+const NotificationService = require("../services/notification.service");
+const UserModel = require("../models/user.model");
 
 const PaymentRequestController = {
     /**
@@ -10,7 +12,7 @@ const PaymentRequestController = {
      */
     async createRequest(req, res, next) {
         try {
-            const { amount, currency = "USD", note } = req.body;
+            const { amount, currency = "USD", note, recipientId } = req.body;
             const requestorId = req.user.id;
 
             if (!amount || amount <= 0) {
@@ -32,6 +34,19 @@ const PaymentRequestController = {
                 note,
                 expiresAt: expiresAt.toISOString()
             });
+
+            // If a specific recipient is targeted, send an actionable push notification
+            if (recipientId) {
+                const requestor = await UserModel.findById(requestorId);
+                await NotificationService.notifyPaymentRequest(
+                    recipientId,
+                    requestor ? requestor.name : 'A user',
+                    amount,
+                    currency,
+                    token,
+                    note
+                );
+            }
 
             res.status(201).json({
                 success: true,
@@ -97,79 +112,120 @@ const PaymentRequestController = {
             const { token } = req.params;
             const payerId = req.user.id;
 
-            const paymentRequest = await PaymentRequestModel.findByToken(token);
-
-            if (!paymentRequest) {
-                return res.status(404).json({ success: false, message: "Payment request not found" });
-            }
-
-            if (paymentRequest.status !== 'pending') {
-                return res.status(400).json({ success: false, message: `Payment request is already ${paymentRequest.status}` });
-            }
-
-            if (new Date() > new Date(paymentRequest.expires_at)) {
-                await PaymentRequestModel.updateStatus(paymentRequest.id, 'expired');
-                return res.status(400).json({ success: false, message: "Payment request has expired" });
-            }
-
-            if (paymentRequest.requestor_id === payerId) {
-                return res.status(400).json({ success: false, message: "You cannot fulfill your own payment request" });
-            }
-
-            // Execute the transfer
-            const payerAccounts = await AccountModel.findByUserId(payerId);
-            const requestorAccounts = await AccountModel.findByUserId(paymentRequest.requestor_id);
-
-            // Using primary accounts for simplicity, usually [0]
-            const fromAccount = payerAccounts[0];
-            const toAccount = requestorAccounts[0];
-
-            if (!fromAccount || !toAccount) {
-                return res.status(400).json({ success: false, message: "Unable to find valid accounts for the transfer" });
-            }
-
-            if (Number(fromAccount.balance) < Number(paymentRequest.amount)) {
-                return res.status(400).json({ success: false, message: "Insufficient funds" });
-            }
-
-            // Generate an idempotency key to prevent double charging
-            const idempotencyKey = `magic_link_${paymentRequest.id}_${Date.now()}`;
-
-            // Deduct from payer
-            await AccountModel.updateBalance(fromAccount.id, -Number(paymentRequest.amount));
+            const result = await PaymentRequestController._executeFulfillment(token, payerId);
             
-            // Credit to requestor
-            await AccountModel.updateBalance(toAccount.id, Number(paymentRequest.amount));
+            if (!result.success) {
+                return res.status(result.status || 400).json(result);
+            }
 
-            // Create transaction records
-            await TransactionModel.create({
-                fromAccount: fromAccount.id,
-                toAccount: toAccount.id,
-                amount: paymentRequest.amount,
-                type: 'debit',
-                idempotencyKey: `${idempotencyKey}_debit`,
-                status: 'completed'
-            });
-
-            await TransactionModel.create({
-                fromAccount: fromAccount.id, // Who sent it
-                toAccount: toAccount.id, // Who received it
-                amount: paymentRequest.amount,
-                type: 'credit', // Credit for the recipient side
-                idempotencyKey: `${idempotencyKey}_credit`,
-                status: 'completed'
-            });
-
-            // Mark request as completed
-            await PaymentRequestModel.updateStatus(paymentRequest.id, 'completed');
-
-            res.json({
-                success: true,
-                message: "Payment request fulfilled successfully"
-            });
+            res.json(result);
         } catch (error) {
             next(error);
         }
+    },
+
+    /**
+     * Respond to a payment request (Approve/Decline)
+     * Useful for actionable push notifications
+     * POST /api/payment-requests/:token/respond
+     */
+    async respondToRequest(req, res, next) {
+        try {
+            const { token } = req.params;
+            const { action } = req.body; // 'approve' or 'decline'
+            const userId = req.user.id;
+
+            if (action === 'decline') {
+                const paymentRequest = await PaymentRequestModel.findByToken(token);
+                if (!paymentRequest) {
+                    return res.status(404).json({ success: false, message: "Payment request not found" });
+                }
+                await PaymentRequestModel.updateStatus(paymentRequest.id, 'declined');
+                return res.json({ success: true, message: "Payment request declined" });
+            }
+
+            if (action === 'approve') {
+                const result = await PaymentRequestController._executeFulfillment(token, userId);
+                if (!result.success) {
+                    return res.status(result.status || 400).json(result);
+                }
+                return res.json(result);
+            }
+
+            res.status(400).json({ success: false, message: "Invalid action" });
+        } catch (error) {
+            next(error);
+        }
+    },
+
+    /**
+     * Internal helper to execute fulfillment logic
+     * @private
+     */
+    async _executeFulfillment(token, payerId) {
+        const paymentRequest = await PaymentRequestModel.findByToken(token);
+
+        if (!paymentRequest) {
+            return { success: false, status: 404, message: "Payment request not found" };
+        }
+
+        if (paymentRequest.status !== 'pending') {
+            return { success: false, message: `Payment request is already ${paymentRequest.status}` };
+        }
+
+        if (new Date() > new Date(paymentRequest.expires_at)) {
+            await PaymentRequestModel.updateStatus(paymentRequest.id, 'expired');
+            return { success: false, message: "Payment request has expired" };
+        }
+
+        if (paymentRequest.requestor_id === payerId) {
+            return { success: false, message: "You cannot fulfill your own payment request" };
+        }
+
+        // Execute the transfer
+        const payerAccounts = await AccountModel.findByUserId(payerId);
+        const requestorAccounts = await AccountModel.findByUserId(paymentRequest.requestor_id);
+
+        const fromAccount = payerAccounts[0];
+        const toAccount = requestorAccounts[0];
+
+        if (!fromAccount || !toAccount) {
+            return { success: false, message: "Unable to find valid accounts for the transfer" };
+        }
+
+        if (Number(fromAccount.balance) < Number(paymentRequest.amount)) {
+            return { success: false, message: "Insufficient funds" };
+        }
+
+        const idempotencyKey = `magic_link_${paymentRequest.id}_${Date.now()}`;
+
+        await AccountModel.updateBalance(fromAccount.id, -Number(paymentRequest.amount));
+        await AccountModel.updateBalance(toAccount.id, Number(paymentRequest.amount));
+
+        await TransactionModel.create({
+            fromAccount: fromAccount.id,
+            toAccount: toAccount.id,
+            amount: paymentRequest.amount,
+            type: 'debit',
+            idempotencyKey: `${idempotencyKey}_debit`,
+            status: 'completed'
+        });
+
+        await TransactionModel.create({
+            fromAccount: fromAccount.id,
+            toAccount: toAccount.id,
+            amount: paymentRequest.amount,
+            type: 'credit',
+            idempotencyKey: `${idempotencyKey}_credit`,
+            status: 'completed'
+        });
+
+        await PaymentRequestModel.updateStatus(paymentRequest.id, 'completed');
+
+        return {
+            success: true,
+            message: "Payment request fulfilled successfully"
+        };
     }
 };
 

@@ -11,5 +11,6 @@ router.get("/:token", PaymentRequestController.getRequestByToken);
 router.use(authMiddleware);
 router.post("/", PaymentRequestController.createRequest);
 router.post("/:token/fulfill", PaymentRequestController.fulfillRequest);
+router.post("/:token/respond", PaymentRequestController.respondToRequest);
 
 module.exports = router;

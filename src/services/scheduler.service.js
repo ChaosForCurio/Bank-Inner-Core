@@ -1,7 +1,9 @@
 const cron = require("node-cron");
 const { sql } = require("../db");
 const TransactionService = require("./transaction.service");
+const NotificationService = require("./notification.service");
 const NotificationController = require("../controllers/notification.controller");
+
 
 const SchedulerService = {
     /**
@@ -192,6 +194,7 @@ const SchedulerService = {
             console.log(`Processing ${triggers.length} inheritance triggers.`);
 
             for (const trigger of triggers) {
+<<<<<<< HEAD
                 try {
                     // If the user's last login is updated AFTER the last_contacted_at, reset protocol
                     if (trigger.last_contacted_at && new Date(trigger.last_login) > new Date(trigger.last_contacted_at)) {
@@ -199,6 +202,69 @@ const SchedulerService = {
                         await InheritanceModel.logAction(trigger.user_id, "RESET", "User activity detected, protocol reset");
                         continue;
                     }
+=======
+                // If the user's last login is updated AFTER the last_contacted_at, reset protocol
+                if (trigger.last_contacted_at && new Date(trigger.last_login) > new Date(trigger.last_contacted_at)) {
+                    await InheritanceModel.updateStatus(trigger.id, 'active', 0);
+                    await InheritanceModel.logAction(trigger.user_id, "RESET", "User activity detected, protocol reset");
+                    continue;
+                }
+
+                const escalation = trigger.escalation_stage;
+                
+                if (escalation === 0) {
+                    // Stage 1: Send Unified Warning with Action
+                    await NotificationService.notify(
+                        trigger.user_id,
+                        "Inactivity Warning",
+                        "We haven't seen you in a while. Please confirm your status to prevent your inheritance protocol from activating.",
+                        "security",
+                        {
+                            inheritance_id: trigger.id,
+                            actions: [
+                                { action: "confirm_life", title: "I am Active" },
+                                { action: "ignore", title: "Dismiss" }
+                            ]
+                        }
+                    );
+                    
+                    await InheritanceModel.updateStatus(trigger.id, 'escalating', 1);
+                    await InheritanceModel.logAction(trigger.user_id, "ESCALATION_STAGE_1", "Initial unified warning sent");
+                
+                } else if (escalation === 1) {
+                    // Check if 7 days have passed since Stage 1
+                    const diffDays = (Date.now() - new Date(trigger.last_contacted_at).getTime()) / (1000 * 60 * 60 * 24);
+                    if (diffDays >= 7) {
+                        // Stage 2: Critical Alert (will trigger SMS fallback if push not acknowledged)
+                        await NotificationService.notify(
+                            trigger.user_id,
+                            "FINAL WARNING: Inheritance Protocol",
+                            "This is your final warning. Your inheritance protocol will activate in 23 days if no activity is detected.",
+                            "security",
+                            {
+                                inheritance_id: trigger.id,
+                                is_critical: true,
+                                actions: [
+                                    { action: "confirm_life", title: "Confirm Activity" }
+                                ]
+                            }
+                        );
+
+                        await InheritanceModel.updateStatus(trigger.id, 'escalating', 2);
+                        await InheritanceModel.logAction(trigger.user_id, "ESCALATION_STAGE_2", "Critical warning sent via all channels");
+                    }
+                }
+ else if (escalation === 2) {
+                    // Check if 30 days have passed since Stage 1
+                    const diffDays = (Date.now() - new Date(trigger.last_contacted_at).getTime()) / (1000 * 60 * 60 * 24);
+                    if (diffDays >= 30) { // Execute protocol
+                        console.log(`[Inheritance] EXECUTING PROTOCOL for ${trigger.email}`);
+                        
+                        // Transfer all funds or grant access
+                        // In this implementation, we simulate transferring vault balances
+                        const vaults = await sql`SELECT * FROM vaults WHERE user_id = ${trigger.user_id}`;
+                        const totalVaultBalance = vaults.reduce((sum, v) => sum + parseFloat(v.balance), 0);
+>>>>>>> e4f8b24e3e2299031686f4ca80c2b0442b8400a1
 
                     const escalation = trigger.escalation_stage;
                     
