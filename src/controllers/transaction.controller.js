@@ -58,7 +58,9 @@ async function createTransaction(req, res) {
             amount,
             type: type || 'transfer',
             idempotencyKey,
-            description: `Transfer to account ${targetAccountId}`
+            description: req.body.description || "Transfer",
+            encryptedNote: req.body.encryptedNote,
+            encryptionIv: req.body.encryptionIv
         });
 
         // Notifications (non-blocking)

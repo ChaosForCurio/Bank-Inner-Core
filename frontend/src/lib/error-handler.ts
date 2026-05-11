@@ -5,15 +5,15 @@ export interface AppError {
     status?: number;
     code?: string;
     isNetworkError?: boolean;
-    originalError: any;
+    originalError: unknown;
 }
 
-export function handleApiError(error: any): AppError {
-    if (error.isNetworkError) {
+export function handleApiError(error: unknown): AppError {
+    if (error && typeof error === 'object' && 'isNetworkError' in error) {
         return error as AppError;
     }
 
-    const axiosError = error as AxiosError<any>;
+    const axiosError = error as AxiosError<{ message?: string }>;
     
     // Default error structure
     const appError: AppError = {

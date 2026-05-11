@@ -92,57 +92,7 @@ async function markAsRead(req, res) {
             WHERE id = ${id} AND user_id = ${userId}
         `;
 
-<<<<<<< HEAD
-            return res.status(200).json({
-                success: true,
-                message: "Notification(s) updated"
-            });
-        } catch (error) {
-            console.error("Mark as read error:", error);
-            return res.status(500).json({ message: "Failed to update notifications" });
-        }
-    },
 
-    /**
-     * sendNotification - Allow frontend to trigger a notification for the current user
-     */
-    async sendNotification(req, res) {
-        const userId = req.user.id;
-        const { title, message, type, url } = req.body;
-        const NotificationService = require("../services/notification.service");
-
-        try {
-            await NotificationService.notify(userId, title, message, type, url);
-            return res.status(201).json({
-                success: true,
-                message: "Notification sent"
-            });
-        } catch (error) {
-            console.error("Send notification error:", error);
-            return res.status(500).json({ message: "Failed to send notification" });
-        }
-    },
-
-    /**
-     * createNotification - Internal utility to create notifications
-     */
-    async createInternal(userId, title, message, type = 'info') {
-        try {
-            await sql`
-                INSERT INTO notifications (user_id, title, message, type)
-                VALUES (${userId}, ${title}, ${message}, ${type})
-            `;
-        } catch (error) {
-            console.error("Internal notification creation error:", error);
-        }
-    },
-
-    /**
-     * getVapidPublicKey - Return the public key for frontend generic subscription
-     */
-    async getVapidPublicKey(req, res) {
-=======
->>>>>>> e4f8b24e3e2299031686f4ca80c2b0442b8400a1
         return res.status(200).json({
             status: "success",
             message: "Notification marked as read"

@@ -5,7 +5,13 @@ import { motion } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils'; // Assuming cn exists or I'll use a simple one
 
-interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+// Omit event handlers that Framer Motion redefines with incompatible signatures
+type SafeButtonProps = Omit<
+  React.ButtonHTMLAttributes<HTMLButtonElement>,
+  'onAnimationStart' | 'onDragStart' | 'onDrag' | 'onDragEnd'
+>;
+
+interface ButtonProps extends SafeButtonProps {
   variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
   size?: 'sm' | 'md' | 'lg';
   isLoading?: boolean;
@@ -42,7 +48,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
           sizes[size],
           className
         )}
-        {...(props as any)}
+        {...props}
       >
         {isLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-inherit">

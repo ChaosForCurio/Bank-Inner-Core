@@ -4,6 +4,27 @@ const dns = require("dns")
 // Force IPv4 resolution to prevent connection timeouts with cloud databases in Node 17+
 dns.setDefaultResultOrder('ipv4first')
 
+// Prevent ioredis 'Connection is closed' from crashing the server when Redis
+// is unavailable. After the retry limit is reached, ioredis flushes its command
+// queue with a thrown error. We catch it here so the rest of the app keeps running.
+process.on('uncaughtException', (err) => {
+    if (err.message && err.message.includes('Connection is closed')) {
+        console.warn('[Redis] Connection closed after max retries. Redis-dependent features (queues, sockets) will be unavailable until Redis comes back online.');
+        return; // Suppress — do not crash
+    }
+    // Re-throw anything else (real unhandled errors should still crash)
+    console.error('[Server] Uncaught Exception:', err);
+    process.exit(1);
+});
+
+process.on('unhandledRejection', (reason) => {
+    if (reason && reason.message && reason.message.includes('Connection is closed')) {
+        console.warn('[Redis] Unhandled rejection: Redis connection closed.');
+        return;
+    }
+    console.error('[Server] Unhandled Rejection:', reason);
+});
+
 const { verifyConnection } = require("./src/db")
 const app = require("./src/app")
 

@@ -5,6 +5,9 @@ Xieriee Bank is a high-performance, executive-tier banking platform designed for
 ## 🚀 Key Features
 
 ### 🔐 Advanced Security
+- **End-to-End Encryption (E2EE)**: Sensitive transaction memos are encrypted in the browser using AES-256-GCM (Web Crypto API) before transmission. Keys are derived locally via PBKDF2.
+- **Autonomous Behavioral Risk Engine**: Real-time transaction risk scoring (0-100) based on velocity, impossible travel geolocation checks, and spending outliers.
+- **Multi-Sig Threshold Approval**: Dynamic approval workflows (1, 2, or 3 signatures) that adjust based on transaction magnitude and calculated risk scores.
 - **Multi-Factor Authentication (MFA)**: Secure account access using industry-standard TOTP.
 - **Passkey Support**: Passwordless authentication using WebAuthn for biometric security.
 - **Proof of Wealth**: Cryptographic verification of account balances without disclosing full assets.
@@ -112,6 +115,8 @@ A Swagger UI is integrated for interactive API exploration. Once running, visit:
 - [x] Virtual Card System
 - [x] Swarm Payment Logic
 - [x] Proof of Wealth Implementation
+- [x] End-to-End Encrypted Memos
+- [x] Behavioral Risk Analysis Engine
 - [ ] Mobile Application (React Native)
 - [ ] Automated Reconciliation Engine
 - [ ] Advanced AI Wealth Management

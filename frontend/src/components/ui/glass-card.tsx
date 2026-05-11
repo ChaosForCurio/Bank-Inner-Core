@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
-import { motion, HTMLMotionProps, useMotionValue, useSpring, useTransform } from 'framer-motion';
+import React, { useCallback } from 'react';
+import { motion, HTMLMotionProps, useMotionValue, useTransform } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
 interface GlassCardProps extends HTMLMotionProps<'div'> {
@@ -24,6 +24,11 @@ export const GlassCard = React.forwardRef<HTMLDivElement, GlassCardProps>(
       [mouseX, mouseY]
     );
 
+    const spotlightBackground = useTransform(
+      [mouseX, mouseY],
+      ([x, y]) => `radial-gradient(600px circle at ${x}px ${y}px, rgba(255,255,255,0.06), transparent 40%)`
+    );
+
     return (
       <motion.div
         ref={ref}
@@ -44,10 +49,7 @@ export const GlassCard = React.forwardRef<HTMLDivElement, GlassCardProps>(
           <motion.div
             className="pointer-events-none absolute -inset-px rounded-2xl opacity-0 transition duration-300 group-hover:opacity-100"
             style={{
-              background: useTransform(
-                [mouseX, mouseY],
-                ([x, y]) => `radial-gradient(600px circle at ${x}px ${y}px, rgba(255,255,255,0.06), transparent 40%)`
-              ),
+              background: spotlightBackground,
             }}
           />
         )}
@@ -58,7 +60,7 @@ export const GlassCard = React.forwardRef<HTMLDivElement, GlassCardProps>(
         )}
         
         <div className="relative z-10">
-          {children as any}
+          {children}
         </div>
       </motion.div>
     );

@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { Bell, Check, Clock, Info, AlertTriangle, DollarSign, ShieldAlert, CheckCircle2, BellRing } from "lucide-react"
 import { api, endpoints } from "@/lib/api"
 import { cn, formatDate } from "@/lib/utils"
+import { handleApiError } from "@/lib/error-handler"
 import { GlassCard } from "./ui/glass-card"
 
 function urlBase64ToUint8Array(base64String: string) {
@@ -17,7 +18,16 @@ function urlBase64ToUint8Array(base64String: string) {
     return outputArray;
 }
 
-const getTypeIcon = (type: string) => {
+interface NotificationItem {
+    id: string | number;
+    title: string;
+    message: string;
+    type: string;
+    read_status: 'unread' | 'read';
+    created_at: string;
+}
+
+const getTypeIcon = (type: string | undefined) => {
     switch (type?.toLowerCase()) {
         case 'transaction': return <DollarSign size={16} className="text-green-400" />;
         case 'warning':
@@ -28,7 +38,7 @@ const getTypeIcon = (type: string) => {
 }
 
 export default function NotificationBell() {
-    const [notifications, setNotifications] = useState<any[]>([])
+    const [notifications, setNotifications] = useState<NotificationItem[]>([])
     const [isOpen, setIsOpen] = useState(false)
     const [unreadCount, setUnreadCount] = useState(0)
     const [isPushEnabled, setIsPushEnabled] = useState(false)
@@ -38,9 +48,10 @@ export default function NotificationBell() {
             const response = await api.get(endpoints.notifications.list)
             const data = response.data.notifications || []
             setNotifications(data)
-            setUnreadCount(data.filter((n: any) => n.read_status === 'unread').length)
-        } catch (error: any) {
-            console.error("Failed to fetch notifications:", error?.message || error)
+            setUnreadCount(data.filter((n: NotificationItem) => n.read_status === 'unread').length)
+        } catch (error: unknown) {
+            const appError = handleApiError(error);
+            console.error("Failed to fetch notifications:", appError.message)
         }
     }
 
@@ -98,7 +109,7 @@ export default function NotificationBell() {
         }
     };
 
-    const markAsRead = async (id: number | 'all') => {
+    const markAsRead = async (id: number | string | 'all') => {
         try {
             await api.patch(endpoints.notifications.markRead(id))
             fetchNotifications()

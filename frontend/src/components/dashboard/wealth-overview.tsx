@@ -7,7 +7,7 @@ import {
     LineChart, Line, XAxis, YAxis, CartesianGrid
 } from "recharts"
 import { GlassCard } from "@/components/ui/glass-card"
-import { api, endpoints } from "@/lib/api"
+import { api } from "@/lib/api"
 import { formatCurrency } from "@/lib/utils"
 import { TrendingUp, PieChart as PieChartIcon, Activity, Lock } from "lucide-react"
 import { usePrivacy } from "@/context/privacy-context"
@@ -15,9 +15,19 @@ import { cn } from "@/lib/utils"
 
 const COLORS = ['#60a5fa', '#a78bfa', '#34d399', '#fb923c', '#f87171', '#818cf8', '#fbbf24'];
 
+interface SpendData {
+    category: string;
+    total_amount: number;
+}
+
+interface HistoryData {
+    date: string | Date;
+    total_balance: number;
+}
+
 export function WealthOverview() {
-    const [spendingData, setSpendingData] = useState<any[]>([])
-    const [historyData, setHistoryData] = useState<any[]>([])
+    const [spendingData, setSpendingData] = useState<SpendData[]>([])
+    const [historyData, setHistoryData] = useState<HistoryData[]>([])
     const [loading, setLoading] = useState(true)
     const [mounted, setMounted] = useState(false)
     const { isPrivate } = usePrivacy()
@@ -34,7 +44,7 @@ export function WealthOverview() {
                     api.get("analytics/history")
                 ])
                 setSpendingData(spendingRes.data.data || [])
-                setHistoryData(historyRes.data.data.map((item: any) => ({
+                setHistoryData(historyRes.data.data.map((item: HistoryData) => ({
                     ...item,
                     date: new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
                 })))
@@ -91,7 +101,13 @@ export function WealthOverview() {
                                                 borderRadius: '12px',
                                                 backdropFilter: 'blur(10px)'
                                             }}
-                                            formatter={(value: any) => formatCurrency(value)}
+                                            formatter={(value: unknown) => {
+                                                const val = Array.isArray(value) ? value[0] : value;
+                                                if (typeof val === 'number' || typeof val === 'string') {
+                                                    return formatCurrency(val);
+                                                }
+                                                return "";
+                                            }}
                                         />
                                     </PieChart>
                                 </ResponsiveContainer>
@@ -159,7 +175,13 @@ export function WealthOverview() {
                                                 borderRadius: '12px',
                                                 backdropFilter: 'blur(10px)'
                                             }}
-                                            formatter={(value: any) => formatCurrency(value)}
+                                            formatter={(value: unknown) => {
+                                                const val = Array.isArray(value) ? value[0] : value;
+                                                if (typeof val === 'number' || typeof val === 'string') {
+                                                    return formatCurrency(val);
+                                                }
+                                                return "";
+                                            }}
                                         />
                                         <Line 
                                             type="monotone" 

@@ -22,6 +22,9 @@ const SchedulerService = {
         cron.schedule("0 0 * * *", async () => {
             console.log("Running Inheritance Dead Man's Switch checks...");
             await this.processInheritanceChecks();
+            
+            console.log("Processing Smart Sweeps...");
+            await this.processSmartSweeps();
         });
 
         // Run every minute to check for expired Swarm Campaigns
@@ -66,6 +69,59 @@ const SchedulerService = {
             }
         } catch (error) {
             console.error("Swarm expiration check error:", error);
+        }
+    },
+
+    /**
+     * processSmartSweeps - Automatically move surplus funds to vaults
+     */
+    async processSmartSweeps() {
+        try {
+            const AccountModel = require("../models/account.model");
+            const VaultModel = require("../models/vault.model");
+            
+            // Get all active users or accounts
+            const accounts = await sql`SELECT * FROM accounts WHERE type = 'checking'`;
+            
+            for (const account of accounts) {
+                // Determine reserve threshold (could be user-specific, defaulting to 1000)
+                const reserveThreshold = 1000.00;
+                
+                if (parseFloat(account.balance) > reserveThreshold) {
+                    const surplus = parseFloat(account.balance) - reserveThreshold;
+                    
+                    // Find the user's primary vault (the one with the most recent activity or just the first one)
+                    const vaults = await VaultModel.findByUserId(account.user_id);
+                    if (vaults && vaults.length > 0) {
+                        const targetVault = vaults[0];
+                        
+                        console.log(`[SmartSweep] Moving ${surplus} from account ${account.id} to vault ${targetVault.id} for user ${account.user_id}`);
+                        
+                        const idempotencyKey = `sweep_${account.id}_${new Date().toISOString().split('T')[0]}`;
+                        
+                        await TransactionService.executeTransfer({
+                            fromAccountId: account.id,
+                            toAccountId: null, // Simulated vault transfer logic
+                            amount: surplus,
+                            type: 'transfer',
+                            idempotencyKey,
+                            description: "Autonomous Smart Sweep to Vault"
+                        });
+                        
+                        // Update vault balance
+                        await VaultModel.updateBalance(targetVault.id, surplus);
+                        
+                        await NotificationController.createInternal(
+                            account.user_id,
+                            "Smart Sweep Executed",
+                            `We've moved ${surplus} to your ${targetVault.name} vault to optimize your savings.`,
+                            'info'
+                        );
+                    }
+                }
+            }
+        } catch (error) {
+            console.error("Smart sweep error:", error);
         }
     },
 
@@ -184,9 +240,7 @@ const SchedulerService = {
     async processInheritanceChecks() {
         try {
             const InheritanceModel = require("../models/inheritance.model");
-            const EmailService = require("./email.service");
-            const PushService = require("./push.service");
-            const AccountModel = require("../models/account.model");
+            const NotificationService = require("./notification.service");
             
             const triggers = await InheritanceModel.getActiveTriggers();
             if (!triggers.length) return;
@@ -194,7 +248,6 @@ const SchedulerService = {
             console.log(`Processing ${triggers.length} inheritance triggers.`);
 
             for (const trigger of triggers) {
-<<<<<<< HEAD
                 try {
                     // If the user's last login is updated AFTER the last_contacted_at, reset protocol
                     if (trigger.last_contacted_at && new Date(trigger.last_login) > new Date(trigger.last_contacted_at)) {
@@ -202,78 +255,20 @@ const SchedulerService = {
                         await InheritanceModel.logAction(trigger.user_id, "RESET", "User activity detected, protocol reset");
                         continue;
                     }
-=======
-                // If the user's last login is updated AFTER the last_contacted_at, reset protocol
-                if (trigger.last_contacted_at && new Date(trigger.last_login) > new Date(trigger.last_contacted_at)) {
-                    await InheritanceModel.updateStatus(trigger.id, 'active', 0);
-                    await InheritanceModel.logAction(trigger.user_id, "RESET", "User activity detected, protocol reset");
-                    continue;
-                }
-
-                const escalation = trigger.escalation_stage;
-                
-                if (escalation === 0) {
-                    // Stage 1: Send Unified Warning with Action
-                    await NotificationService.notify(
-                        trigger.user_id,
-                        "Inactivity Warning",
-                        "We haven't seen you in a while. Please confirm your status to prevent your inheritance protocol from activating.",
-                        "security",
-                        {
-                            inheritance_id: trigger.id,
-                            actions: [
-                                { action: "confirm_life", title: "I am Active" },
-                                { action: "ignore", title: "Dismiss" }
-                            ]
-                        }
-                    );
-                    
-                    await InheritanceModel.updateStatus(trigger.id, 'escalating', 1);
-                    await InheritanceModel.logAction(trigger.user_id, "ESCALATION_STAGE_1", "Initial unified warning sent");
-                
-                } else if (escalation === 1) {
-                    // Check if 7 days have passed since Stage 1
-                    const diffDays = (Date.now() - new Date(trigger.last_contacted_at).getTime()) / (1000 * 60 * 60 * 24);
-                    if (diffDays >= 7) {
-                        // Stage 2: Critical Alert (will trigger SMS fallback if push not acknowledged)
-                        await NotificationService.notify(
-                            trigger.user_id,
-                            "FINAL WARNING: Inheritance Protocol",
-                            "This is your final warning. Your inheritance protocol will activate in 23 days if no activity is detected.",
-                            "security",
-                            {
-                                inheritance_id: trigger.id,
-                                is_critical: true,
-                                actions: [
-                                    { action: "confirm_life", title: "Confirm Activity" }
-                                ]
-                            }
-                        );
-
-                        await InheritanceModel.updateStatus(trigger.id, 'escalating', 2);
-                        await InheritanceModel.logAction(trigger.user_id, "ESCALATION_STAGE_2", "Critical warning sent via all channels");
-                    }
-                }
- else if (escalation === 2) {
-                    // Check if 30 days have passed since Stage 1
-                    const diffDays = (Date.now() - new Date(trigger.last_contacted_at).getTime()) / (1000 * 60 * 60 * 24);
-                    if (diffDays >= 30) { // Execute protocol
-                        console.log(`[Inheritance] EXECUTING PROTOCOL for ${trigger.email}`);
-                        
-                        // Transfer all funds or grant access
-                        // In this implementation, we simulate transferring vault balances
-                        const vaults = await sql`SELECT * FROM vaults WHERE user_id = ${trigger.user_id}`;
-                        const totalVaultBalance = vaults.reduce((sum, v) => sum + parseFloat(v.balance), 0);
->>>>>>> e4f8b24e3e2299031686f4ca80c2b0442b8400a1
 
                     const escalation = trigger.escalation_stage;
                     
                     if (escalation === 0) {
-                        // Stage 1: Send Push & Email warning
-                        await PushService.sendToUser(trigger.user_id, {
-                            title: "Action Required",
-                            body: "We haven't seen you in a while. Please log in to prevent your inheritance protocol from activating."
-                        });
+                        // Stage 1: Send Warning
+                        await NotificationService.notify(
+                            trigger.user_id,
+                            "Inactivity Warning",
+                            "We haven't seen you in a while. Please confirm your status to prevent your inheritance protocol from activating.",
+                            "security",
+                            {
+                                actions: [{ action: "confirm_life", title: "I am Active" }]
+                            }
+                        );
                         
                         // We simulate email
                         console.log(`[Inheritance] Stage 1 Warning sent to ${trigger.email}`);
@@ -298,7 +293,7 @@ const SchedulerService = {
                             // Transfer all funds or grant access
                             // In this implementation, we simulate transferring vault balances
                             const vaults = await sql`SELECT * FROM vaults WHERE user_id = ${trigger.user_id}`;
-                            const totalVaultBalance = vaults.reduce((sum, v) => sum + parseFloat(v.balance), 0);
+                            const totalVaultBalance = vaults.reduce((sum, v) => sum + parseFloat(v.current_amount || 0), 0);
 
                             if (totalVaultBalance > 0) {
                                 console.log(`[Inheritance] Transferring ${totalVaultBalance} to beneficiary ${trigger.beneficiary_email}`);

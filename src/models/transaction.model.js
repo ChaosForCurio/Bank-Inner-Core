@@ -5,7 +5,7 @@ const TransactionModel = {
     /**
      * create - Create a new transaction with cryptographic chaining
      */
-    async create({ fromAccount, toAccount, amount, type, idempotencyKey, status = 'pending', category = 'Other' }) {
+    async create({ fromAccount, toAccount, amount, type, idempotencyKey, status = 'pending', category = 'Other', encryptedNote = null, encryptionIv = null }) {
         try {
             // Get the latest transaction hash for chaining
             const latest = await sql`
@@ -16,18 +16,20 @@ const TransactionModel = {
             
             const previousHash = latest.length > 0 ? latest[0].hash : "0".repeat(64);
 
-            // Calculate hash for this transaction
-            const dataToHash = `${previousHash}|${fromAccount}|${toAccount}|${amount}|${type}|${idempotencyKey}|${category}`;
+            // Calculate hash for this transaction (include encryptedNote in hash for integrity)
+            const dataToHash = `${previousHash}|${fromAccount}|${toAccount}|${amount}|${type}|${idempotencyKey}|${category}|${encryptedNote || ''}`;
             const hash = crypto.createHash('sha256').update(dataToHash).digest('hex');
 
             const transactions = await sql`
                 INSERT INTO transactions (
                     from_account, to_account, amount, type, 
-                    idempotency_key, status, category, hash, previous_hash
+                    idempotency_key, status, category, hash, previous_hash,
+                    encrypted_note, encryption_iv
                 )
                 VALUES (
                     ${fromAccount}, ${toAccount}, ${amount}, ${type}, 
-                    ${idempotencyKey}, ${status}, ${category}, ${hash}, ${previousHash}
+                    ${idempotencyKey}, ${status}, ${category}, ${hash}, ${previousHash},
+                    ${encryptedNote}, ${encryptionIv}
                 )
                 RETURNING *
             `;
@@ -72,7 +74,6 @@ const TransactionModel = {
     },
 
     /**
-<<<<<<< HEAD
      * findByAccountWithPagination - Find transactions for an account with pagination
      */
     async findByAccountWithPagination(accountId, limit = 50, cursor = null) {
@@ -102,7 +103,8 @@ const TransactionModel = {
             console.error("Error in TransactionModel.findByAccountWithPagination:", error);
             throw error;
         }
-=======
+    },
+    /**
      * verifyChain - Verify the integrity of the transaction chain for a range
      */
     async verifyChain(limit = 100) {
@@ -119,7 +121,7 @@ const TransactionModel = {
             const next = txs[i + 1]; // next in DESC order is actually previous in timeline
 
             // Verify current hash
-            const dataToHash = `${current.previous_hash}|${current.from_account}|${current.to_account}|${current.amount}|${current.type}|${current.idempotency_key}|${current.category}`;
+            const dataToHash = `${current.previous_hash}|${current.from_account}|${current.to_account}|${current.amount}|${current.type}|${current.idempotency_key}|${current.category}|${current.encrypted_note || ''}`;
             const calculatedHash = crypto.createHash('sha256').update(dataToHash).digest('hex');
 
             if (calculatedHash !== current.hash) {
@@ -131,7 +133,6 @@ const TransactionModel = {
             }
         }
         return { verified: errors.length === 0, errors };
->>>>>>> e4f8b24e3e2299031686f4ca80c2b0442b8400a1
     }
 };
 

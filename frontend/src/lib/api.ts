@@ -1,4 +1,4 @@
-import axios, { AxiosError } from "axios";
+import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 import { getCookie } from "cookies-next";
 
 // Determines the API base URL.
@@ -53,7 +53,7 @@ import { handleApiError } from "./error-handler";
 api.interceptors.response.use(
     (response) => response,
     async (error: AxiosError) => {
-        const originalRequest = error.config as any;
+        const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
         const requestUrl: string = originalRequest?.url ?? "";
 
         // Skip silent refresh for auth endpoints — they handle their own failures

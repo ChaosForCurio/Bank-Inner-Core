@@ -19,6 +19,7 @@ import toast from "react-hot-toast"
 import { GlassCard } from "@/components/ui/glass-card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
+import { DecryptedNote } from "@/components/dashboard/DecryptedNote"
 
 export default function HistoryPage({ user }: { user?: any }) {
     const [transactions, setTransactions] = useState<any[]>([])
@@ -169,6 +170,12 @@ export default function HistoryPage({ user }: { user?: any }) {
                                                         <p className="font-bold text-white group-hover:text-primary transition-colors truncate text-base">
                                                             {tx.description || "Core System Transfer"}
                                                         </p>
+                                                        {tx.encrypted_note && tx.encryption_iv && (
+                                                            <DecryptedNote 
+                                                                encryptedNote={tx.encrypted_note} 
+                                                                iv={tx.encryption_iv} 
+                                                            />
+                                                        )}
                                                         <div className="flex items-center gap-2 mt-1 md:hidden">
                                                             <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest">{tx.type}</span>
                                                             <span className="w-1 h-1 rounded-full bg-white/10" />

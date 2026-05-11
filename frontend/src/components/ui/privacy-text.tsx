@@ -1,7 +1,6 @@
 "use client"
 import React from 'react'
 import { usePrivacy } from '@/context/privacy-context'
-import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
 
 interface PrivacyTextProps {
@@ -14,29 +13,25 @@ export function PrivacyText({ children, className, mask = "••••" }: Priv
     const { isPrivate } = usePrivacy()
 
     return (
-        <span className={cn("relative inline-block", className)}>
-            <AnimatePresence mode="wait">
-                {isPrivate ? (
-                    <motion.span
-                        key="masked"
-                        initial={{ opacity: 0, filter: 'blur(4px)' }}
-                        animate={{ opacity: 1, filter: 'blur(0px)' }}
-                        exit={{ opacity: 0, filter: 'blur(4px)' }}
-                        className="font-mono tracking-widest opacity-60"
-                    >
-                        {mask}
-                    </motion.span>
-                ) : (
-                    <motion.span
-                        key="visible"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                    >
-                        {children}
-                    </motion.span>
+        <span className={cn("relative inline transition-all duration-300", className)}>
+            <span 
+                className={cn(
+                    "transition-all duration-300",
+                    isPrivate ? "opacity-0 blur-sm select-none absolute pointer-events-none" : "opacity-100 blur-0"
                 )}
-            </AnimatePresence>
+                aria-hidden={isPrivate}
+            >
+                {children}
+            </span>
+            <span 
+                className={cn(
+                    "font-mono tracking-widest opacity-60 transition-all duration-300",
+                    isPrivate ? "opacity-60 blur-0" : "opacity-0 blur-sm select-none absolute pointer-events-none"
+                )}
+                aria-hidden={!isPrivate}
+            >
+                {mask}
+            </span>
         </span>
     )
 }

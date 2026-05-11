@@ -19,6 +19,7 @@ import { usePrivacy } from "@/context/privacy-context"
 import { PrivacyToggle } from "@/components/dashboard/privacy-toggle"
 import { WealthOverview } from "@/components/dashboard/wealth-overview"
 import { SavingsVaults } from "@/components/dashboard/savings-vaults"
+import { ApprovalQueue } from "@/components/dashboard/ApprovalQueue"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { api, endpoints } from "@/lib/api"
 import { cn } from "@/lib/utils"
@@ -98,7 +99,7 @@ export default function Dashboard({ user: initialUser }: { user?: any }) {
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                 >
-                    <h1 className="text-4xl font-black font-outfit tracking-tight">Bonjour, {user?.name}!</h1>
+                    <h1 className="text-4xl font-black font-outfit tracking-tight">Bonjour, {user?.name || "Executive"}!</h1>
                     <p className="text-white/50 mt-2 font-medium">Your financial ecosystem is performing optimally.</p>
                 </motion.div>
                 
@@ -135,7 +136,7 @@ export default function Dashboard({ user: initialUser }: { user?: any }) {
                         <div className="flex justify-between items-start">
                             <div className="space-y-1">
                                 <span className="text-xs font-bold uppercase tracking-[0.2em] text-white/40">Total Liquidity</span>
-                                <h2 className="text-4xl md:text-6xl font-black font-outfit tracking-tighter bg-gradient-to-b from-white to-white/60 bg-clip-text text-transparent">
+                                <h2 className="text-4xl md:text-6xl font-black font-outfit tracking-tighter text-white">
                                     <PrivacyText>{formatCurrency(balance)}</PrivacyText>
                                 </h2>
                             </div>
@@ -169,6 +170,9 @@ export default function Dashboard({ user: initialUser }: { user?: any }) {
                     </div>
                 </GlassCard>
             </motion.div>
+
+            {/* Executive Approval Queue */}
+            <ApprovalQueue />
 
             {/* Wealth Overlay (Charts) */}
             <WealthOverview />

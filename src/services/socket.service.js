@@ -11,6 +11,16 @@ const SocketService = {
         const pubClient = createRedisConnection();
         const subClient = pubClient.duplicate();
 
+        // Must attach error handlers on both clients — ioredis requires it
+        // or Node.js will throw an unhandled 'error' event and crash.
+        const redisErrHandler = (err) => {
+            if (err.code !== 'ECONNREFUSED') {
+                console.error('[Redis:Socket] Error:', err.message);
+            }
+        };
+        pubClient.on('error', redisErrHandler);
+        subClient.on('error', redisErrHandler);
+
         io = new Server(server, {
             cors: {
                 origin: [env.ORIGIN, "https://bank-inner-core-4s7p.vercel.app"].filter(Boolean),

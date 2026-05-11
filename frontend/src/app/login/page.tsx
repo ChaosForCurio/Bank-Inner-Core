@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { setCookie } from "cookies-next"
 import toast from "react-hot-toast"
 import { api, endpoints } from "@/lib/api"
+import { handleApiError } from "@/lib/error-handler"
 
 export default function LoginPage() {
     return (
@@ -39,10 +40,9 @@ function LoginForm() {
             setCookie("token", data.accessToken, { maxAge: 60 * 60 * 24 * 7 })
             toast.success("Welcome back!")
             router.push(redirectUrl)
-        } catch (error: any) {
-            // Handle new error response structure
-            const message = error.response?.data?.message || "Login failed"
-            toast.error(message)
+        } catch (error: unknown) {
+            const appError = handleApiError(error);
+            toast.error(appError.message);
         } finally {
             setLoading(false)
         }

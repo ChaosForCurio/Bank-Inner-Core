@@ -8,18 +8,57 @@ const SocketService = require("./socket.service");
 const WebhookService = require("./webhook.service");
 const AIService = require("./ai.service");
 const TreasuryService = require("./treasury.service");
+const RiskService = require("./risk.service");
 
 const TransactionService = {
     /**
      * executeTransfer - Core logic for moving money between accounts
      * Handles balance updates and ledger entries.
      */
-    async executeTransfer({ fromAccountId, toAccountId, amount, type, idempotencyKey, description }) {
+    async executeTransfer({ fromAccountId, toAccountId, amount, type, idempotencyKey, description, encryptedNote, encryptionIv }) {
         try {
             // Auto-categorize based on description
             const category = AIService.categorize(description);
 
-            // A. Create transaction record
+            // A. Behavioral Risk Assessment & Threshold Check
+            const sender = await AccountModel.findById(fromAccountId);
+            const riskScore = await RiskService.calculateRiskScore(sender.user_id, fromAccountId, amount);
+            const requiredApprovals = RiskService.determineRequiredApprovals(riskScore);
+            
+            const BASE_THRESHOLD = 5000;
+            const dynamicThreshold = riskScore >= 50 ? BASE_THRESHOLD / 2 : BASE_THRESHOLD;
+
+            if (amount >= dynamicThreshold && type !== 'internal_sweep') {
+                const transaction = await TransactionModel.create({
+                    fromAccount: fromAccountId, 
+                    toAccount: toAccountId, 
+                    amount, 
+                    type, 
+                    idempotencyKey, 
+                    status: 'approval_pending',
+                    category,
+                    encryptedNote,
+                    encryptionIv
+                });
+                // Create approval request record with dynamic requirement
+                await sql`
+                    INSERT INTO transaction_approvals (transaction_id, status, required_count)
+                    VALUES (${transaction.id}, 'pending', ${requiredApprovals})
+                `;
+
+                // Notify User for Step-up Auth/Approval
+                if (sender) {
+                    const riskWarning = riskScore >= 50 ? " [High Risk Detected]" : "";
+                    await PushService.sendToUser(sender.user_id, {
+                        title: `Approval Required${riskWarning}`,
+                        body: `A transfer of ₹${parseFloat(amount).toLocaleString('en-IN')} requires ${requiredApprovals} approval(s) due to risk level: ${riskScore}.`,
+                        url: `/dashboard/approvals?id=${transaction.id}`
+                    });
+                }
+                return { ...transaction, status: 'approval_pending', riskScore };
+            }
+
+            // B. Create transaction record (normal flow)
             const transaction = await TransactionModel.create({
                 fromAccount: fromAccountId, 
                 toAccount: toAccountId, 
@@ -27,7 +66,9 @@ const TransactionService = {
                 type, 
                 idempotencyKey, 
                 status: 'pending',
-                category
+                category,
+                encryptedNote,
+                encryptionIv
             });
 
 

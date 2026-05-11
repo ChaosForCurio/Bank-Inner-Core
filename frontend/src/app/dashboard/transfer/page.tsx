@@ -25,6 +25,7 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { GlassCard } from "@/components/ui/glass-card"
 import { Skeleton } from "@/components/ui/skeleton"
+import { deriveKey, encryptNote, getEncryptionSecret } from "@/lib/crypto"
 import Link from "next/link"
 
 export default function TransferPage({ user }: { user?: any }) {
@@ -37,6 +38,7 @@ export default function TransferPage({ user }: { user?: any }) {
         toAccount: "",
         toUserUuid: "",
         amount: "",
+        note: "",
         idempotencyKey: `tx_${Date.now()}`
     })
     const [transferType, setTransferType] = useState<"account" | "uuid">("account")
@@ -169,6 +171,22 @@ export default function TransferPage({ user }: { user?: any }) {
                 payload.toAccount = formData.toAccount
             } else {
                 payload.toUserUuid = formData.toUserUuid
+            }
+
+            // E2EE Note Encryption
+            if (formData.note) {
+                try {
+                    const secret = getEncryptionSecret();
+                    const key = await deriveKey(secret);
+                    const { encryptedData, iv } = await encryptNote(formData.note, key);
+                    payload.encryptedNote = encryptedData;
+                    payload.encryptionIv = iv;
+                    payload.description = "Encrypted Transfer"; // Non-sensitive fallback
+                } catch (e) {
+                    console.error("Encryption failed:", e);
+                    toast.error("Encryption failed. Transaction aborted for security.");
+                    return;
+                }
             }
 
             const response = await api.post(endpoints.transactions.create, payload)
@@ -493,6 +511,25 @@ Thank you for choosing Xieriee Secure Core.
                                     </AnimatePresence>
                                 </div>
 
+                                {/* E2EE Note Section */}
+                                <div className="space-y-4 pt-2">
+                                    <div className="flex items-center justify-between px-1">
+                                        <div className="flex items-center gap-2">
+                                            <Fingerprint className="w-4 h-4 text-emerald-400" />
+                                            <span className="text-xs font-bold uppercase tracking-widest text-white/40">Secure Transaction Note</span>
+                                        </div>
+                                        <span className="text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded font-black tracking-tighter uppercase border border-emerald-500/20">E2E Encrypted</span>
+                                    </div>
+                                    <div className="relative group">
+                                        <textarea
+                                            placeholder="Write a private memo (visible only to you and recipient)..."
+                                            className="w-full bg-white/[0.03] border border-white/10 rounded-2xl p-5 text-sm font-medium outline-none focus:border-emerald-500/30 focus:bg-emerald-500/5 transition-all min-h-[100px] resize-none"
+                                            value={formData.note}
+                                            onChange={e => setFormData({ ...formData, note: e.target.value })}
+                                        />
+                                    </div>
+                                </div>
+
                                 <Button size="lg" className="w-full py-8 text-xl" onClick={handleNext} rightIcon={<ArrowRight />}>
                                     Initialize Transfer
                                 </Button>
@@ -614,7 +651,7 @@ Thank you for choosing Xieriee Secure Core.
                                 <div className="space-y-4">
                                     <Button size="lg" className="w-full" onClick={() => {
                                         setStep(1);
-                                        setFormData({ toAccount: "", toUserUuid: "", amount: "", idempotencyKey: `tx_${Date.now()}` });
+                                        setFormData({ toAccount: "", toUserUuid: "", amount: "", note: "", idempotencyKey: `tx_${Date.now()}` });
                                         setRecipientName(null);
                                     }}>
                                         New Operation

@@ -39,7 +39,10 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setConnected(false);
     });
 
-    setSocket(newSocket);
+    // Defer setting state to avoid synchronous cascading renders
+    Promise.resolve().then(() => {
+      setSocket(newSocket);
+    });
 
     return () => {
       newSocket.close();

@@ -1,6 +1,7 @@
 const { Router } = require("express")
 const authMiddleware = require("../middleware/auth.middleware")
 const transactionController = require("../controllers/transaction.controller")
+const approvalController = require("../controllers/approval.controller")
 
 const transactionRoutes = Router()
 
@@ -87,6 +88,10 @@ transactionRoutes.post("/system/intial-funds", authMiddleware.authSystemUserMidd
  *       200:
  *         description: Transaction details
  */
+transactionRoutes.get("/pending-approvals", authMiddleware.authMiddleware, approvalController.getPendingApprovals)
+transactionRoutes.post("/approve", authMiddleware.authMiddleware, approvalController.approve)
+transactionRoutes.post("/reject", authMiddleware.authMiddleware, approvalController.reject)
+transactionRoutes.get("/integrity/verify-chain", authMiddleware.authMiddleware, transactionController.verifyAuditChain)
 transactionRoutes.get("/:id", authMiddleware.authMiddleware, transactionController.getTransactionById)
 
 module.exports = transactionRoutes

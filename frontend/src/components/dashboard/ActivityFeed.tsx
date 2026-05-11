@@ -8,6 +8,7 @@ import { ArrowUpRight, ArrowDownLeft, Bell } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePrivacy } from '@/context/privacy-context';
 import { PrivacyText } from '@/components/ui/privacy-text';
+import { DecryptedNote } from './DecryptedNote';
 
 interface Transaction {
   id: string;
@@ -16,7 +17,22 @@ interface Transaction {
   description: string;
   category: string;
   created_at: string;
-  metadata?: any;
+  encrypted_note?: string;
+  encryption_iv?: string;
+  metadata?: {
+    actions?: Array<{ action: string; title: string }>;
+    [key: string]: unknown;
+  };
+}
+
+interface NotificationPayload {
+  id?: string;
+  title: string;
+  message: string;
+  metadata?: {
+    actions?: Array<{ action: string; title: string }>;
+    [key: string]: unknown;
+  };
 }
 
 export const ActivityFeed: React.FC = () => {
@@ -33,7 +49,7 @@ export const ActivityFeed: React.FC = () => {
     });
 
     // NEW: Listen for unified notifications
-    socket.on('notification', (notif: any) => {
+    socket.on('notification', (notif: NotificationPayload) => {
       const activity: Transaction = {
         id: notif.id || Math.random().toString(),
         type: 'notification',
@@ -97,10 +113,17 @@ export const ActivityFeed: React.FC = () => {
                   </p>
                   <p className="text-xs text-white/40 truncate">{item.category}</p>
                   
+                  {item.encrypted_note && item.encryption_iv && (
+                    <DecryptedNote 
+                      encryptedNote={item.encrypted_note} 
+                      iv={item.encryption_iv} 
+                    />
+                  )}
+                  
                   {/* Inline Actions for Notifications */}
                   {item.type === 'notification' && item.metadata?.actions && (
                     <div className="flex gap-2 mt-2">
-                      {item.metadata.actions.map((btn: any) => (
+                      {item.metadata.actions.map((btn) => (
                         <button 
                           key={btn.action}
                           className="text-[10px] px-2 py-1 rounded bg-amber-500/20 text-amber-500 hover:bg-amber-500/40 transition-colors uppercase font-bold"
@@ -112,27 +135,18 @@ export const ActivityFeed: React.FC = () => {
                     </div>
                   )}
                 </div>
-<<<<<<< HEAD
-                <div className="text-right">
-                  <p className={cn(
-                    "text-sm font-bold",
-                    tx.type === 'credit' ? "text-green-500" : "text-white"
-                  )}>
-                    <PrivacyText>
-                        {tx.type === 'credit' ? '+' : '-'} ₹{parseFloat(tx.amount.toString()).toLocaleString('en-IN')}
-                    </PrivacyText>
-                  </p>
-=======
                 <div className="text-right whitespace-nowrap">
                   {item.amount !== undefined && (
                     <p className={cn(
                       "text-sm font-bold",
                       item.type === 'credit' ? "text-green-500" : "text-white"
                     )}>
-                      {item.type === 'credit' ? '+' : '-'} ₹{parseFloat(item.amount.toString()).toLocaleString('en-IN')}
+                      <PrivacyText>
+                        {item.type === 'credit' ? '+' : '-'} ₹{parseFloat(item.amount.toString()).toLocaleString('en-IN')}
+                      </PrivacyText>
                     </p>
                   )}
->>>>>>> e4f8b24e3e2299031686f4ca80c2b0442b8400a1
+
                   <p className="text-[10px] text-white/20">Just now</p>
                 </div>
               </GlassCard>
